@@ -3,6 +3,7 @@ import { BusinessProvider } from './context/BusinessContext';
 import { useBusiness } from './hooks/useBusiness';
 import BottomNav from './components/layout/BottomNav';
 import ToastContainer from './components/ui/Toast';
+import InstallPrompt from './components/ui/InstallPrompt';
 import Onboarding from './pages/Onboarding';
 import Home from './pages/Home';
 import Stock from './pages/Stock';
@@ -34,11 +35,17 @@ function AppContent() {
   }
 
   if (!onboarded) {
-    return <Onboarding />;
+    return (
+      <>
+        <InstallPrompt />
+        <Onboarding />
+      </>
+    );
   }
 
   return (
     <div className="app-layout">
+      <InstallPrompt />
       <ToastContainer />
       <Routes>
         <Route path="/" element={<Home />} />
