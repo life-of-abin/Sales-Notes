@@ -3,6 +3,7 @@
   "short_name": "Sales Notes",
   "description": "Smart Sales, Inventory, Ledger & Profit Management for small businesses",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0B0F19",
   "theme_color": "#5B1EE6",
@@ -12,19 +13,60 @@
       "src": "/logo.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/logo.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Sale",
+      "short_name": "New Sale",
+      "description": "Quickly record a customer sale",
+      "url": "/new-sale",
+      "icons": [
+        {
+          "src": "/logo.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Stock Inventory",
+      "short_name": "Stock",
+      "description": "Check current inventory levels",
+      "url": "/stock",
+      "icons": [
+        {
+          "src": "/logo.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Customer Khata",
+      "short_name": "Khata",
+      "description": "Manage customer credit and ledger",
+      "url": "/customers",
+      "icons": [
+        {
+          "src": "/logo.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ],
   "categories": [
