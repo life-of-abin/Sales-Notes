@@ -18,7 +18,7 @@ import Expenses from './pages/Expenses';
 import Customers from './pages/Customers';
 
 function AppContent() {
-  const { loading, onboarded } = useBusiness();
+  const { loading } = useBusiness();
 
   if (loading) {
     return (
@@ -34,21 +34,13 @@ function AppContent() {
     );
   }
 
-  if (!onboarded) {
-    return (
-      <>
-        <InstallPrompt />
-        <Onboarding />
-      </>
-    );
-  }
-
   return (
     <div className="app-layout">
       <InstallPrompt />
       <ToastContainer />
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/stock" element={<Stock />} />
         <Route path="/stock/:id" element={<ProductDetail />} />
         <Route path="/sales" element={<Sales />} />

@@ -71,7 +71,10 @@ export function BusinessProvider({ children }) {
   useEffect(() => {
     async function init() {
       const settings = await db.settings.get('main');
-      setOnboarded(!!settings?.onboarded);
+      if (!settings) {
+        await db.settings.put({ id: 'main', onboarded: true, language: 'en' });
+      }
+      setOnboarded(true);
       if (settings?.language) {
         setLanguage(settings.language);
         localStorage.setItem('my_dukaan_lang', settings.language);
