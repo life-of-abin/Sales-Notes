@@ -145,10 +145,12 @@ const ta = {
   add: 'சேர்க்க',
 
   // Filters
+  all: 'அனைத்தும்',
   today: 'இன்று',
   thisWeek: 'இந்த வாரம்',
   thisMonth: 'இந்த மாதம்',
-  all: 'அனைத்தும்',
+  thisYear: 'இந்த ஆண்டு',
+  yearly: 'வருடாந்திரம்',
   allTime: 'எல்லா நேரமும்',
   topSelling: 'அதிகம் விற்ற துணிகள்',
   itemsSold: 'விற்பனையானது',

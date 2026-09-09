@@ -145,10 +145,12 @@ const en = {
   add: 'Add',
 
   // Filters
+  all: 'All',
   today: 'Today',
   thisWeek: 'This Week',
   thisMonth: 'This Month',
-  all: 'All',
+  thisYear: 'This Year',
+  yearly: 'Yearly',
   allTime: 'All Time',
   topSelling: 'Top Selling Items',
   itemsSold: 'sold',

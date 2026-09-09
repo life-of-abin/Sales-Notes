@@ -61,7 +61,13 @@ export function isThisMonth(dateStr) {
   return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
 }
 
+export function isThisYear(dateStr) {
+  const d = new Date(dateStr);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear();
+}
+
 export function getShortDate(dateStr) {
   const d = new Date(dateStr);
-  return `${d.getDate()} ${MONTHS[d.getMonth()]}`;
+  return `${d.getDate()} ${MONTHS_EN[d.getMonth()]}`;
 }

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBusiness } from '../hooks/useBusiness';
 import { formatCurrency } from '../utils/formatCurrency';
-import { formatDate, formatTime, isToday, isThisWeek, isThisMonth } from '../utils/formatDate';
+import { formatDate, formatTime, isToday, isThisWeek, isThisMonth, isThisYear } from '../utils/formatDate';
 import { formatProductDisplayName } from '../utils/transliterate';
 import PageHeader from '../components/layout/PageHeader';
 import EmptyState from '../components/ui/EmptyState';
@@ -10,13 +10,14 @@ import EmptyState from '../components/ui/EmptyState';
 export default function Sales() {
   const navigate = useNavigate();
   const { sales, saleItems, products, language, t } = useBusiness();
-  const [filter, setFilter] = useState('today');
+  const [filter, setFilter] = useState('all');
 
   const filterFns = {
+    all: () => true,
     today: (s) => isToday(s.date),
     week: (s) => isThisWeek(s.date),
     month: (s) => isThisMonth(s.date),
-    all: () => true,
+    year: (s) => isThisYear(s.date),
   };
 
   const filtered = sales.filter(filterFns[filter] || filterFns.all);
@@ -32,10 +33,11 @@ export default function Sales() {
   };
 
   const filters = [
+    { key: 'all', label: t.all },
     { key: 'today', label: t.today },
     { key: 'week', label: t.thisWeek },
     { key: 'month', label: t.thisMonth },
-    { key: 'all', label: t.all },
+    { key: 'year', label: t.thisYear || t.yearly || 'Yearly' },
   ];
 
   return (
@@ -60,7 +62,7 @@ export default function Sales() {
       {filtered.length > 0 && (
         <div className="card" style={{ marginBottom: 'var(--space-xl)' }}>
           <div className="summary-row">
-            <span className="summary-row-label">{t.todaySales.replace("Today's", 'Total')}</span>
+            <span className="summary-row-label">{t.salesLabel || t.sales}</span>
             <span className="summary-row-value">{formatCurrency(totalSales)}</span>
           </div>
           <div className="summary-row">
