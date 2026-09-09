@@ -237,10 +237,10 @@ export default function NewSale() {
                     />
                     <div>
                       <div style={{ fontWeight: 800, fontSize: 'var(--font-size-sm)', color: 'var(--color-text)' }}>
-                        {t.batch || 'Batch'} #{lot.batchNumber || (idx + 1)} · {formatCurrency(lot.sellingPrice)}
+                        {t.batch || 'Batch'} #{lot.batchNumber || (idx + 1)}
                       </div>
-                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: 2 }}>
-                        {t.costPriceLabel || 'Cost'}: <span style={{ fontWeight: 600 }}>{formatCurrency(lot.purchasePrice)}</span>
+                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: 2, fontWeight: 600 }}>
+                        {formatCurrency(lot.sellingPrice)} / {t.piece || t.pieces || 'pc'}
                       </div>
                     </div>
                   </div>
