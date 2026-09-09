@@ -250,7 +250,8 @@ export default function Reports() {
   const [summary, setSummary] = useState(null);
   const [topProducts, setTopProducts] = useState([]);
   const [selectedBar, setSelectedBar] = useState(null);
-  const [selectedSalesIndex, setSelectedSalesIndex] = useState(null);
+  const [selectedBatchId, setSelectedBatchId] = useState(null);
+  const [selectedSalesGroup, setSelectedSalesGroup] = useState(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
@@ -589,14 +590,8 @@ export default function Reports() {
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart
                             data={salesProfitData}
-                            onClick={(d) => {
-                              if (d?.activeTooltipIndex !== undefined) {
-                                const idx = d.activeTooltipIndex;
-                                setSelectedSalesIndex((prev) => (prev === idx ? null : idx));
-                              }
-                            }}
                             margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
-                            barGap={3}
+                            barGap={4}
                           >
                             <CartesianGrid
                               strokeDasharray="3 3"
@@ -635,16 +630,25 @@ export default function Reports() {
                               cursor="pointer"
                               stroke="none"
                               strokeWidth={0}
+                              onClick={(data, index, e) => {
+                                if (e && e.stopPropagation) e.stopPropagation();
+                                if (data?.label) {
+                                  setSelectedSalesGroup(data.label);
+                                }
+                              }}
                             >
-                              {salesProfitData.map((_, index) => {
-                                const isSelected = selectedSalesIndex === index;
+                              {salesProfitData.map((entry, index) => {
+                                const isSelected = selectedSalesGroup === entry.label;
                                 return (
                                   <Cell
-                                    key={index}
+                                    key={`sales-cell-${entry.label || index}`}
                                     fill={C.sales}
-                                    stroke={isSelected ? '#0F172A' : 'none'}
-                                    strokeWidth={isSelected ? 2.5 : 0}
-                                    opacity={selectedSalesIndex !== null ? (isSelected ? 1 : 0.65) : 1}
+                                    stroke={isSelected ? '#000000' : 'none'}
+                                    strokeWidth={isSelected ? 2 : 0}
+                                    onClick={(e) => {
+                                      if (e && e.stopPropagation) e.stopPropagation();
+                                      setSelectedSalesGroup(entry.label);
+                                    }}
                                   />
                                 );
                               })}
@@ -658,16 +662,25 @@ export default function Reports() {
                               cursor="pointer"
                               stroke="none"
                               strokeWidth={0}
+                              onClick={(data, index, e) => {
+                                if (e && e.stopPropagation) e.stopPropagation();
+                                if (data?.label) {
+                                  setSelectedSalesGroup(data.label);
+                                }
+                              }}
                             >
-                              {salesProfitData.map((_, index) => {
-                                const isSelected = selectedSalesIndex === index;
+                              {salesProfitData.map((entry, index) => {
+                                const isSelected = selectedSalesGroup === entry.label;
                                 return (
                                   <Cell
-                                    key={index}
+                                    key={`profit-cell-${entry.label || index}`}
                                     fill={C.profit}
-                                    stroke={isSelected ? '#0F172A' : 'none'}
-                                    strokeWidth={isSelected ? 2.5 : 0}
-                                    opacity={selectedSalesIndex !== null ? (isSelected ? 1 : 0.65) : 1}
+                                    stroke={isSelected ? '#000000' : 'none'}
+                                    strokeWidth={isSelected ? 2 : 0}
+                                    onClick={(e) => {
+                                      if (e && e.stopPropagation) e.stopPropagation();
+                                      setSelectedSalesGroup(entry.label);
+                                    }}
                                   />
                                 );
                               })}
@@ -756,12 +769,6 @@ export default function Reports() {
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart
                             data={batchData}
-                            onClick={(d) => {
-                              if (d?.activePayload?.length) {
-                                const clicked = d.activePayload[0].payload;
-                                setSelectedBar((prev) => (prev?.id === clicked.id ? null : clicked));
-                              }
-                            }}
                             margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
                           >
                             <CartesianGrid
@@ -795,16 +802,27 @@ export default function Reports() {
                               maxBarSize={32}
                               stroke="none"
                               strokeWidth={0}
+                              onClick={(data, index, e) => {
+                                if (e && e.stopPropagation) e.stopPropagation();
+                                if (data) {
+                                  setSelectedBatchId(data.id);
+                                  setSelectedBar(data);
+                                }
+                              }}
                             >
                               {batchData.map((entry, index) => {
-                                const isSelected = selectedBar?.id === entry.id;
+                                const isSelected = selectedBatchId === entry.id;
                                 return (
                                   <Cell
-                                    key={index}
+                                    key={`batch-cell-${entry.id || index}`}
                                     fill={entry.status === 'completed' ? C.completed : C.batch}
-                                    stroke={isSelected ? '#0F172A' : 'none'}
-                                    strokeWidth={isSelected ? 2.5 : 0}
-                                    opacity={selectedBar ? (isSelected ? 1 : 0.65) : 1}
+                                    stroke={isSelected ? '#000000' : 'none'}
+                                    strokeWidth={isSelected ? 2 : 0}
+                                    onClick={(e) => {
+                                      if (e && e.stopPropagation) e.stopPropagation();
+                                      setSelectedBatchId(entry.id);
+                                      setSelectedBar(entry);
+                                    }}
                                   />
                                 );
                               })}
