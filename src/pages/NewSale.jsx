@@ -299,11 +299,11 @@ export default function NewSale() {
         {actualSalePrice > 0 && (
           <div style={{ marginTop: 'var(--space-md)', paddingTop: 'var(--space-sm)', borderTop: '1px solid var(--color-border)' }}>
             <div className="summary-row" style={{ fontSize: 'var(--font-size-xs)', marginBottom: 4 }}>
-              <span className="summary-row-label">{t.costPriceLabel || 'Cost Price'}:</span>
+              <span className="summary-row-label">{t.costPriceLabel || t.costPrice || 'Cost Price'}:</span>
               <span className="summary-row-value">{formatCurrency(purchaseCost)}</span>
             </div>
             <div className="summary-row" style={{ fontSize: 'var(--font-size-xs)', marginBottom: 4 }}>
-              <span className="summary-row-label">{t.predefinedPrice || 'Predefined Price'}:</span>
+              <span className="summary-row-label">{t.sellingPriceLabel || t.sellPrice || 'Sell Price'}:</span>
               <span className="summary-row-value">{formatCurrency(predefinedPrice)}</span>
             </div>
             {tx.totalDiscount > 0 && (
@@ -311,6 +311,14 @@ export default function NewSale() {
                 <span className="summary-row-label">{t.discount}:</span>
                 <span className="summary-row-value" style={{ color: '#EF4444', fontWeight: 700 }}>
                   -{formatCurrency(tx.totalDiscount)}
+                </span>
+              </div>
+            )}
+            {tx.totalExtra > 0 && (
+              <div className="summary-row" style={{ fontSize: 'var(--font-size-xs)', marginBottom: 4 }}>
+                <span className="summary-row-label">{t.extra || 'Extra'}:</span>
+                <span className="summary-row-value" style={{ color: '#10B981', fontWeight: 700 }}>
+                  +{formatCurrency(tx.totalExtra)}
                 </span>
               </div>
             )}
@@ -349,7 +357,7 @@ export default function NewSale() {
             <AlertTriangle size={22} color="#DC2626" style={{ flexShrink: 0 }} />
             <div>
               <div style={{ fontWeight: 800, fontSize: 'var(--font-size-sm)', color: '#DC2626', lineHeight: 1.4 }}>
-                {(t.sellingBelowCostWarning || '⚠️ Selling below cost price ({cost}). Loss: ₹{loss}')
+                {(t.belowCostPriceWarning || t.sellingBelowCostWarning || '⚠️ Below cost price ({cost}). Loss: ₹{loss}')
                   .replace('{cost}', formatCurrency(purchaseCost))
                   .replace('{loss}', formatCurrency(tx.totalLoss))}
               </div>

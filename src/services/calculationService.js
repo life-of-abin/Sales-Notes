@@ -18,51 +18,78 @@ export function roundCurrency(val) {
  * Computes all financial metrics for an individual sale or line item.
  *
  * Core Formulas:
- * - revenue = actualSalePrice * quantity
- * - costOfGoodsSold = costPerUnitAtSale * quantity
- * - realizedProfit = revenue - costOfGoodsSold
- * - discountPerUnit = max(0, predefinedSellPriceAtSale - actualSalePrice)
- * - totalDiscount = discountPerUnit * quantity (Never negative)
- * - isLoss = actualSalePrice < costPerUnitAtSale
- * - unitLoss = isLoss ? costPerUnitAtSale - actualSalePrice : 0
- * - totalLoss = unitLoss * quantity
+ * - saleRevenue = actualSalePrice * quantitySold
+ * - saleCost = costPrice * quantitySold
+ * - saleRealizedProfit = saleRevenue - saleCost
+ * - discount: if actualSalePrice < sellPrice -> (sellPrice - actualSalePrice) * quantitySold, else 0
+ * - extra: if actualSalePrice > sellPrice -> (actualSalePrice - sellPrice) * quantitySold, else 0
+ * - profitWithoutDiscount = (sellPrice - costPrice) * quantitySold
+ * - isLoss = actualSalePrice < costPrice
+ * - loss: if isLoss -> (costPrice - actualSalePrice) * quantitySold, else 0
+ * - Consistency: realizedProfit = profitWithoutDiscount - totalDiscount + totalExtra
  */
 export function calculateSaleTransaction({
   quantity = 1,
+  quantitySold = null,
+  costPrice = null,
   costPerUnitAtSale = 0,
+  sellPrice = null,
   predefinedSellPriceAtSale = 0,
   actualSalePrice = 0,
 }) {
-  const qty = Math.max(0, Number(quantity) || 0);
-  const cost = Math.max(0, Number(costPerUnitAtSale) || 0);
-  const predefinedPrice = Math.max(0, Number(predefinedSellPriceAtSale) || 0);
+  const qty = Math.max(0, Number(quantitySold ?? quantity) || 0);
+  const cost = Math.max(0, Number(costPrice ?? costPerUnitAtSale) || 0);
+  const predefinedPrice = Math.max(0, Number(sellPrice ?? predefinedSellPriceAtSale) || 0);
   const actualPrice = Math.max(0, Number(actualSalePrice) || 0);
 
-  const revenue = roundCurrency(actualPrice * qty);
-  const costOfGoodsSold = roundCurrency(cost * qty);
-  const realizedProfit = roundCurrency(revenue - costOfGoodsSold);
+  const saleRevenue = roundCurrency(actualPrice * qty);
+  const saleCost = roundCurrency(cost * qty);
+  const saleRealizedProfit = roundCurrency(saleRevenue - saleCost);
 
-  // Discount is non-negative difference between predefined reference price and actual sale price
-  const discountPerUnit = roundCurrency(Math.max(0, predefinedPrice - actualPrice));
-  const totalDiscount = roundCurrency(discountPerUnit * qty);
+  // Discount: only when actualSalePrice < sellPrice (never negative)
+  const discountPerItem = actualPrice < predefinedPrice ? roundCurrency(predefinedPrice - actualPrice) : 0;
+  const totalDiscount = roundCurrency(discountPerItem * qty);
 
+  // Extra: only when actualSalePrice > sellPrice (never negative)
+  const extraPerItem = actualPrice > predefinedPrice ? roundCurrency(actualPrice - predefinedPrice) : 0;
+  const totalExtra = roundCurrency(extraPerItem * qty);
+
+  // Profit Without Discount: normal profit if sold at predefined sell price
+  const profitWithoutDiscount = roundCurrency((predefinedPrice - cost) * qty);
+
+  // Below Cost Warning & Loss
   const isLoss = actualPrice < cost;
-  const lossPerUnit = isLoss ? roundCurrency(cost - actualPrice) : 0;
-  const totalLoss = isLoss ? roundCurrency(lossPerUnit * qty) : 0;
+  const lossPerItem = isLoss ? roundCurrency(cost - actualPrice) : 0;
+  const totalLoss = isLoss ? roundCurrency(lossPerItem * qty) : 0;
 
   return {
     quantity: qty,
+    quantitySold: qty,
+    costPrice: cost,
     costPerUnitAtSale: cost,
+    sellPrice: predefinedPrice,
     predefinedSellPriceAtSale: predefinedPrice,
     actualSalePrice: actualPrice,
-    revenue,
-    costOfGoodsSold,
-    realizedProfit,
-    discountPerUnit,
+    revenue: saleRevenue,
+    saleRevenue,
+    costOfGoodsSold: saleCost,
+    saleCost,
+    realizedProfit: saleRealizedProfit,
+    saleRealizedProfit,
+    profitWithoutDiscount,
+    discountPerItem,
+    discountPerUnit: discountPerItem,
     totalDiscount,
+    discount: totalDiscount,
+    extraPerItem,
+    extraPerUnit: extraPerItem,
+    totalExtra,
+    extra: totalExtra,
     isLoss,
-    lossPerUnit,
+    lossPerItem,
+    lossPerUnit: lossPerItem,
     totalLoss,
+    loss: totalLoss,
   };
 }
 
@@ -154,13 +181,14 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
   let totalRevenue = 0;
   let totalCOGS = 0;
   let totalDiscount = 0;
+  let totalExtra = 0;
   let totalRealizedProfit = 0;
   let totalPurchasedQty = 0;
   let totalSoldQty = 0;
   let totalRemainingQty = 0;
   let totalRemainingInvestment = 0;
   let totalExpectedRevenue = 0;
-  let totalExpectedProfit = 0;
+  let totalProfitWithoutDiscount = 0;
 
   const enrichedLots = lots.map((lot) => {
     const lotAllocs = lotAllocationsMap.get(lot.id) || [];
@@ -172,19 +200,20 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
     let lotRevenue = 0;
     let lotCOGS = 0;
     let lotDiscount = 0;
+    let lotExtra = 0;
     let lotRealizedProfit = 0;
     let lotSoldQty = 0;
 
     for (const a of lotAllocs) {
       const aQty = Number(a.quantity) || 0;
-      const aCost = a.costPerUnitAtSale !== undefined ? Number(a.costPerUnitAtSale) : (Number(a.purchasePrice) || bPrice);
-      const aPredefined = a.predefinedSellPriceAtSale !== undefined ? Number(a.predefinedSellPriceAtSale) : sPrice;
+      const aCost = a.costPrice !== undefined ? Number(a.costPrice) : (a.costPerUnitAtSale !== undefined ? Number(a.costPerUnitAtSale) : (Number(a.purchasePrice) || bPrice));
+      const aPredefined = a.sellPrice !== undefined ? Number(a.sellPrice) : (a.predefinedSellPriceAtSale !== undefined ? Number(a.predefinedSellPriceAtSale) : sPrice);
       const aActual = a.actualSalePrice !== undefined ? Number(a.actualSalePrice) : (Number(a.sellingPrice) || sPrice);
 
       const aCalc = calculateSaleTransaction({
         quantity: aQty,
-        costPerUnitAtSale: aCost,
-        predefinedSellPriceAtSale: aPredefined,
+        costPrice: aCost,
+        sellPrice: aPredefined,
         actualSalePrice: aActual,
       });
 
@@ -192,6 +221,7 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
       lotRevenue += aCalc.revenue;
       lotCOGS += aCalc.costOfGoodsSold;
       lotDiscount += aCalc.totalDiscount;
+      lotExtra += aCalc.totalExtra;
       lotRealizedProfit += aCalc.realizedProfit;
     }
 
@@ -200,14 +230,15 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
       const fallbackSold = pQty - rQty;
       const fallbackCalc = calculateSaleTransaction({
         quantity: fallbackSold,
-        costPerUnitAtSale: bPrice,
-        predefinedSellPriceAtSale: sPrice,
+        costPrice: bPrice,
+        sellPrice: sPrice,
         actualSalePrice: sPrice,
       });
       lotSoldQty = fallbackCalc.quantity;
       lotRevenue = fallbackCalc.revenue;
       lotCOGS = fallbackCalc.costOfGoodsSold;
       lotDiscount = fallbackCalc.totalDiscount;
+      lotExtra = fallbackCalc.totalExtra;
       lotRealizedProfit = fallbackCalc.realizedProfit;
     }
 
@@ -215,36 +246,48 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
     const lotRemainingInvestment = roundCurrency(rQty * bPrice);
     const lotExpectedReturn = rQty > 0 ? roundCurrency(rQty * sPrice) : 0;
     const lotExpectedRevenue = roundCurrency(lotSoldQty * sPrice);
-    const lotExpectedProfit = roundCurrency(lotSoldQty * (sPrice - bPrice));
+    const lotProfitWithoutDiscount = roundCurrency(lotSoldQty * (sPrice - bPrice));
 
     totalInvestment += lotInvestment;
     totalRevenue += lotRevenue;
     totalCOGS += lotCOGS;
     totalDiscount += lotDiscount;
+    totalExtra += lotExtra;
     totalRealizedProfit += lotRealizedProfit;
     totalPurchasedQty += pQty;
     totalSoldQty += lotSoldQty;
     totalRemainingQty += rQty;
     totalRemainingInvestment += lotRemainingInvestment;
     totalExpectedRevenue += lotExpectedRevenue;
-    totalExpectedProfit += lotExpectedProfit;
+    totalProfitWithoutDiscount += lotProfitWithoutDiscount;
 
     return {
       ...lot,
+      quantityPurchased: pQty,
       purchaseQty: pQty,
+      quantitySold: lotSoldQty,
       soldQty: lotSoldQty,
+      quantityRemaining: rQty,
       remainingQty: rQty,
+      costPrice: bPrice,
       buyPrice: bPrice,
       sellPrice: sPrice,
+      totalInvestment: lotInvestment,
       investment: lotInvestment,
       remainingInvestment: lotRemainingInvestment,
+      totalSales: roundCurrency(lotRevenue),
       revenue: roundCurrency(lotRevenue),
       costOfGoodsSold: roundCurrency(lotCOGS),
+      totalDiscount: roundCurrency(lotDiscount),
       discount: roundCurrency(lotDiscount),
+      totalExtra: roundCurrency(lotExtra),
+      extra: roundCurrency(lotExtra),
+      profitWithoutDiscount: lotProfitWithoutDiscount,
+      grossProfit: lotProfitWithoutDiscount,
       realizedProfit: roundCurrency(lotRealizedProfit),
       expectedReturn: lotExpectedReturn,
       expectedRevenue: lotExpectedRevenue,
-      expectedProfit: lotExpectedProfit,
+      expectedProfit: lotProfitWithoutDiscount,
     };
   });
 
@@ -262,15 +305,19 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
     totalRemainingQty,
     remainingInvestment: roundCurrency(totalRemainingInvestment),
     stockInvestment: roundCurrency(totalRemainingInvestment),
+    totalSales: roundCurrency(totalRevenue),
     totalRevenue: roundCurrency(totalRevenue),
     revenue: roundCurrency(totalRevenue),
     totalCOGS: roundCurrency(totalCOGS),
     totalDiscount: roundCurrency(totalDiscount),
     discount: roundCurrency(totalDiscount),
+    totalExtra: roundCurrency(totalExtra),
+    extra: roundCurrency(totalExtra),
+    profitWithoutDiscount: roundCurrency(totalProfitWithoutDiscount),
+    grossProfit: roundCurrency(totalProfitWithoutDiscount), // backward compatibility
     realizedProfit: roundCurrency(totalRealizedProfit),
-    grossProfit: roundCurrency(totalExpectedProfit), // Expected profit without discounts
     expectedRevenue: roundCurrency(totalExpectedRevenue),
-    expectedProfit: roundCurrency(totalExpectedProfit),
+    expectedProfit: roundCurrency(totalProfitWithoutDiscount),
     totalExpectedReturn: roundCurrency(enrichedLots.reduce((sum, l) => sum + l.expectedReturn, 0)),
     averageActualSalePrice,
     status,
@@ -287,16 +334,24 @@ export function calculatePeriodFinancials({
   lots = [],
   batches = [],
 }) {
-  const totalRevenue = roundCurrency(
-    sales.reduce((sum, s) => sum + (Number(s.totalAmount) || 0), 0)
+  const totalSales = roundCurrency(
+    sales.reduce((sum, s) => sum + (Number(s.totalAmount) || Number(s.revenue) || 0), 0)
   );
 
   const totalRealizedProfit = roundCurrency(
-    sales.reduce((sum, s) => sum + (Number(s.totalProfit) || 0), 0)
+    sales.reduce((sum, s) => sum + (Number(s.totalProfit) || Number(s.realizedProfit) || 0), 0)
   );
 
   const totalDiscountGiven = roundCurrency(
-    sales.reduce((sum, s) => sum + (Number(s.discount) || 0), 0)
+    sales.reduce((sum, s) => sum + (Number(s.discount) || Number(s.totalDiscount) || 0), 0)
+  );
+
+  const totalExtra = roundCurrency(
+    sales.reduce((sum, s) => sum + (Number(s.extra) || Number(s.totalExtra) || 0), 0)
+  );
+
+  const totalProfitWithoutDiscount = roundCurrency(
+    sales.reduce((sum, s) => sum + (Number(s.profitWithoutDiscount) || 0), 0)
   );
 
   const totalExpenses = roundCurrency(
@@ -328,14 +383,18 @@ export function calculatePeriodFinancials({
     )
   );
 
-  const totalGrossProfit = roundCurrency(totalRealizedProfit + totalDiscountGiven);
+  const totalGrossProfit = totalProfitWithoutDiscount > 0
+    ? totalProfitWithoutDiscount
+    : roundCurrency(totalRealizedProfit + totalDiscountGiven - totalExtra);
 
   return {
     totalInvestment,
-    totalRevenue,
-    totalSales: totalRevenue,
+    totalSales,
+    totalRevenue: totalSales,
     totalDiscount: totalDiscountGiven,
     totalDiscountGiven,
+    totalExtra,
+    profitWithoutDiscount: totalProfitWithoutDiscount || totalGrossProfit,
     realizedProfit: totalRealizedProfit,
     totalRealizedProfit,
     totalProfit: totalRealizedProfit,

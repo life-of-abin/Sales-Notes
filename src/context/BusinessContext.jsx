@@ -171,6 +171,8 @@ export function BusinessProvider({ children }) {
     let totalSaleRevenue = 0;
     let totalSaleProfit = 0;
     let totalSaleDiscount = 0;
+    let totalSaleExtra = 0;
+    let totalSaleProfitWithoutDiscount = 0;
     let totalSaleCOGS = 0;
 
     const calculatedAllocations = allocations.map((alloc) => {
@@ -179,14 +181,16 @@ export function BusinessProvider({ children }) {
       const actualPrice = rawActualPrice;
       const tx = calculateSaleTransaction({
         quantity: alloc.quantity,
-        costPerUnitAtSale: costPrice,
-        predefinedSellPriceAtSale: predefinedPrice,
+        costPrice,
+        sellPrice: predefinedPrice,
         actualSalePrice: actualPrice,
       });
 
       totalSaleRevenue += tx.revenue;
       totalSaleProfit += tx.realizedProfit;
       totalSaleDiscount += tx.totalDiscount;
+      totalSaleExtra += tx.totalExtra;
+      totalSaleProfitWithoutDiscount += tx.profitWithoutDiscount;
       totalSaleCOGS += tx.costOfGoodsSold;
 
       return {
@@ -200,6 +204,8 @@ export function BusinessProvider({ children }) {
     totalSaleRevenue = roundCurrency(totalSaleRevenue);
     totalSaleProfit = roundCurrency(totalSaleProfit);
     totalSaleDiscount = roundCurrency(totalSaleDiscount);
+    totalSaleExtra = roundCurrency(totalSaleExtra);
+    totalSaleProfitWithoutDiscount = roundCurrency(totalSaleProfitWithoutDiscount);
     totalSaleCOGS = roundCurrency(totalSaleCOGS);
 
     const saleId = generateId();
@@ -219,6 +225,8 @@ export function BusinessProvider({ children }) {
       totalAmount: totalSaleRevenue,
       totalProfit: totalSaleProfit,
       discount: totalSaleDiscount,
+      extra: totalSaleExtra,
+      profitWithoutDiscount: totalSaleProfitWithoutDiscount,
       costOfGoodsSold: totalSaleCOGS,
       paymentStatus,
     });
@@ -234,6 +242,9 @@ export function BusinessProvider({ children }) {
       actualSalePrice: rawActualPrice,
       discount: roundCurrency(totalSaleDiscount / (quantity || 1)),
       totalDiscount: totalSaleDiscount,
+      extra: roundCurrency(totalSaleExtra / (quantity || 1)),
+      totalExtra: totalSaleExtra,
+      profitWithoutDiscount: totalSaleProfitWithoutDiscount,
       revenue: totalSaleRevenue,
       costOfGoodsSold: totalSaleCOGS,
       realizedProfit: totalSaleProfit,
@@ -250,8 +261,11 @@ export function BusinessProvider({ children }) {
         predefinedSellPrice: alloc.predefinedSellPrice,
         sellingPrice: alloc.actualSalePrice,
         actualSalePrice: alloc.actualSalePrice,
-        discount: alloc.tx.discountPerUnit,
+        discount: alloc.tx.discountPerItem,
         totalDiscount: alloc.tx.totalDiscount,
+        extra: alloc.tx.extraPerItem,
+        totalExtra: alloc.tx.totalExtra,
+        profitWithoutDiscount: alloc.tx.profitWithoutDiscount,
         revenue: alloc.tx.revenue,
         costOfGoodsSold: alloc.tx.costOfGoodsSold,
         realizedProfit: alloc.tx.realizedProfit,
@@ -383,6 +397,37 @@ export function BusinessProvider({ children }) {
     showToast(t.expenseDeleted || 'Expense deleted');
   }, [refreshData, showToast, t]);
 
+  // ---- DELETE SALE ----
+  const deleteSale = useCallback(async (saleId) => {
+    // 1. Find all saleItems and saleAllocations for this sale
+    const items = await db.saleItems.where('saleId').equals(saleId).toArray();
+    const itemIds = items.map((i) => i.id);
+    const allocs = await db.saleAllocations.where('saleItemId').anyOf(itemIds).toArray();
+
+    // 2. Restore lot remaining quantities
+    for (const alloc of allocs) {
+      const lot = await db.inventoryLots.get(alloc.lotId);
+      if (lot) {
+        await db.inventoryLots.update(alloc.lotId, {
+          remainingQty: (Number(lot.remainingQty) || 0) + (Number(alloc.quantity) || 0),
+        });
+      }
+    }
+
+    // 3. Delete allocations, items, payments, and sale
+    for (const alloc of allocs) {
+      await db.saleAllocations.delete(alloc.id);
+    }
+    for (const item of items) {
+      await db.saleItems.delete(item.id);
+    }
+    await db.customerPayments.where('saleId').equals(saleId).delete();
+    await db.sales.delete(saleId);
+
+    await refreshData();
+    showToast(t.saleDeleted || 'Sale deleted');
+  }, [refreshData, showToast, t]);
+
   // ---- Computed values ----
   const todaySales = sales.filter((s) => isToday(s.date));
   const todaySalesTotal = roundCurrency(todaySales.reduce((sum, s) => sum + (Number(s.totalAmount) || 0), 0));
@@ -417,6 +462,7 @@ export function BusinessProvider({ children }) {
     completeOnboarding,
     createPurchase,
     recordSale,
+    deleteSale,
     addExpense,
     deleteExpense,
     addCustomer,

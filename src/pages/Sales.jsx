@@ -95,6 +95,16 @@ export default function Sales() {
               <div className={`sale-card-profit ${sale.totalProfit < 0 ? 'negative' : ''}`}>
                 {sale.totalProfit >= 0 ? '+' : ''}{formatCurrency(sale.totalProfit)}
               </div>
+              {sale.discount > 0 && (
+                <div style={{ fontSize: '11px', color: '#EF4444', fontWeight: 700, marginTop: 2 }}>
+                  {t.discount}: -{formatCurrency(sale.discount)}
+                </div>
+              )}
+              {sale.extra > 0 && (
+                <div style={{ fontSize: '11px', color: '#10B981', fontWeight: 700, marginTop: 2 }}>
+                  {t.extra || 'Extra'}: +{formatCurrency(sale.extra)}
+                </div>
+              )}
             </div>
           </div>
         ))
