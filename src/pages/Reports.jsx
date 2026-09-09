@@ -10,13 +10,14 @@ import { FileSpreadsheet } from 'lucide-react';
 import db from '../db/database';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
-  Legend
+  Legend, ReferenceLine
 } from 'recharts';
 
 /* ─── Palette ─────────────────────────────────────────── */
 const C = {
   sales:    '#5B1EE6',
   profit:   '#10B981',
+  loss:     '#EF4444',
   expense:  '#F97316',
   batch:    '#5B1EE6',
   completed:'#10B981',
@@ -25,18 +26,21 @@ const C = {
 
 /* ─── Axis Config Generator ───────────────────────────── */
 function calcYAxisConfig(data = [], keys = []) {
+  let min = 0;
   let max = 0;
   data.forEach((item) => {
     keys.forEach((k) => {
       const val = Number(item[k] || 0);
       if (val > max) max = val;
+      if (val < min) min = val;
     });
   });
 
-  if (max <= 0) max = 100;
+  const absMax = Math.max(Math.abs(min), Math.abs(max));
+  const effectiveMax = absMax <= 0 ? 100 : absMax;
 
   // Compute a clean step
-  const roughStep = max / 4;
+  const roughStep = effectiveMax / 4;
   let step;
   if (roughStep <= 15) step = 15;
   else if (roughStep <= 25) step = 25;
@@ -52,14 +56,41 @@ function calcYAxisConfig(data = [], keys = []) {
     step = Math.ceil(roughStep / power) * power;
   }
 
-  const yMax = step * 4 >= max ? step * 4 : Math.ceil(max / step) * step;
-  const ticks = [0, step, step * 2, step * 3, yMax];
+  let yMin = 0;
+  let yMax = 0;
+  const ticks = [];
 
-  return { yMax, ticks, dummyData: [{ dummy: yMax }] };
+  if (min < 0 && max > 0) {
+    const posSteps = Math.max(1, Math.ceil(max / step));
+    const negSteps = Math.max(1, Math.ceil(Math.abs(min) / step));
+    yMax = posSteps * step;
+    yMin = -(negSteps * step);
+    for (let t = yMin; t <= yMax; t += step) {
+      ticks.push(t);
+    }
+    return { yMin, yMax, ticks, dummyData: [{ dummy: yMax }, { dummy: yMin }] };
+  } else if (min < 0 && max <= 0) {
+    const negSteps = Math.max(1, Math.ceil(Math.abs(min) / step));
+    yMin = -(negSteps * step);
+    yMax = 0;
+    for (let t = yMin; t <= 0; t += step) {
+      ticks.push(t);
+    }
+    return { yMin, yMax, ticks, dummyData: [{ dummy: 0 }, { dummy: yMin }] };
+  } else {
+    // Only positive or zero
+    const posSteps = Math.max(1, Math.ceil(effectiveMax / step));
+    yMax = posSteps >= 4 ? posSteps * step : step * 4;
+    yMin = 0;
+    for (let t = 0; t <= yMax; t += step) {
+      ticks.push(t);
+    }
+    return { yMin, yMax, ticks, dummyData: [{ dummy: yMax }, { dummy: 0 }] };
+  }
 }
 
 /* ─── Custom Tooltip ─────────────────────────────────── */
-function ChartTooltip({ active, payload, label }) {
+function ChartTooltip({ active, payload, label, t }) {
   if (!active || !payload || !payload.length) return null;
   return (
     <div style={{
@@ -71,15 +102,26 @@ function ChartTooltip({ active, payload, label }) {
       minWidth: 120,
     }}>
       <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 6, fontWeight: 600 }}>{label}</div>
-      {payload.map((p, i) => (
-        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-          <div style={{ width: 8, height: 8, borderRadius: '50%', background: p.color || p.fill }} />
-          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{p.name}:</span>
-          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>
-            ₹{Number(p.value || 0).toLocaleString('en-IN')}
-          </span>
-        </div>
-      ))}
+      {payload.map((p, i) => {
+        const val = Number(p.value || 0);
+        const isLoss = (p.dataKey === 'profit' || p.dataKey === 'realizedProfit') && val < 0;
+        let displayName = p.name;
+        if (p.dataKey === 'profit' || p.dataKey === 'realizedProfit') {
+          displayName = isLoss ? (t?.loss || 'Loss') : (t?.profitLabel || 'Profit');
+        }
+        const color = isLoss ? '#EF4444' : (p.color || p.fill);
+        const formattedVal = `₹${Math.abs(val).toLocaleString('en-IN')}`;
+
+        return (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
+            <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{displayName}:</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: isLoss ? '#EF4444' : 'var(--color-text)' }}>
+              {formattedVal}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -322,7 +364,8 @@ export default function Reports() {
       else key = d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
       if (!grouped[key]) grouped[key] = { label: key, sales: 0, profit: 0 };
       grouped[key].sales += Number(s.totalAmount) || 0;
-      grouped[key].profit += Number(s.totalProfit) || 0;
+      const p = s.realizedProfit !== undefined ? Number(s.realizedProfit) : (Number(s.totalProfit) || 0);
+      grouped[key].profit += p;
     });
     return Object.values(grouped);
   }, [sales, timeframe]);
@@ -477,9 +520,12 @@ export default function Reports() {
 
   const fmtK = (v) => {
     if (v === 0) return '₹0';
-    if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
-    if (v >= 1000) return `₹${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k`;
-    return `₹${v}`;
+    const isNeg = v < 0;
+    const abs = Math.abs(v);
+    let str = `₹${abs}`;
+    if (abs >= 100000) str = `₹${(abs / 100000).toFixed(1)}L`;
+    else if (abs >= 1000) str = `₹${(abs / 1000).toFixed(abs % 1000 === 0 ? 0 : 1)}k`;
+    return isNeg ? `-${str}` : str;
   };
 
   return (
@@ -563,7 +609,7 @@ export default function Reports() {
                           margin={{ top: 8, right: 0, left: -6, bottom: 24 }}
                         >
                           <YAxis
-                            domain={[0, salesAxisConfig.yMax]}
+                            domain={[salesAxisConfig.yMin, salesAxisConfig.yMax]}
                             ticks={salesAxisConfig.ticks}
                             tick={{
                               fontSize: 12,
@@ -619,6 +665,8 @@ export default function Reports() {
                               ? { left: `${Math.min(96, pct)}%`, transform: 'translateX(-100%)' }
                               : { left: `${pct}%`, transform: 'translateX(-50%)' };
 
+                          const isLoss = Number(activeItem.profit || 0) < 0;
+
                           return (
                             <div
                               style={{
@@ -647,10 +695,12 @@ export default function Reports() {
                                 </span>
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.profit }} />
-                                <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>{t.profitLabel || 'Profit'}:</span>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)' }}>
-                                  ₹{Number(activeItem.profit || 0).toLocaleString('en-IN')}
+                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: isLoss ? C.loss : C.profit }} />
+                                <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                                  {isLoss ? (t.lossLabel || t.loss || 'Loss') : (t.profitLabel || 'Profit')}:
+                                </span>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: isLoss ? C.loss : 'var(--color-text)' }}>
+                                  ₹{Math.abs(Number(activeItem.profit || 0)).toLocaleString('en-IN')}
                                 </span>
                               </div>
                             </div>
@@ -668,6 +718,7 @@ export default function Reports() {
                               stroke="var(--color-border)"
                               vertical={false}
                             />
+                            <ReferenceLine y={0} stroke="var(--color-border-dark, #94A3B8)" strokeWidth={1.5} />
                             <XAxis
                               dataKey="label"
                               tick={{
@@ -681,7 +732,7 @@ export default function Reports() {
                               height={24}
                             />
                             <YAxis
-                              domain={[0, salesAxisConfig.yMax]}
+                              domain={[salesAxisConfig.yMin, salesAxisConfig.yMax]}
                               ticks={salesAxisConfig.ticks}
                               hide={true}
                             />
@@ -698,10 +749,12 @@ export default function Reports() {
                               isAnimationActive={false}
                               shape={(props) => {
                                 const { x, y, width, height, payload } = props;
-                                if (!height || height <= 0 || !width || width <= 0) return null;
+                                if (!width || width <= 0) return null;
+                                const barHeight = Math.abs(height || 0);
+                                if (barHeight <= 0) return null;
                                 const isSelected = selectedSalesGroup === payload?.label;
-                                const r = Math.min(5, Math.max(0, width / 2), Math.max(0, height));
-                                const d = `M ${x},${y + height} L ${x},${y + r} Q ${x},${y} ${x + r},${y} L ${x + width - r},${y} Q ${x + width},${y} ${x + width},${y + r} L ${x + width},${y + height} Z`;
+                                const r = Math.min(5, Math.max(0, width / 2), barHeight);
+                                const d = `M ${x},${y + barHeight} L ${x},${y + r} Q ${x},${y} ${x + r},${y} L ${x + width - r},${y} Q ${x + width},${y} ${x + width},${y + r} L ${x + width},${y + barHeight} Z`;
                                 return (
                                   <path
                                     d={d}
@@ -730,14 +783,27 @@ export default function Reports() {
                               isAnimationActive={false}
                               shape={(props) => {
                                 const { x, y, width, height, payload } = props;
-                                if (!height || height <= 0 || !width || width <= 0) return null;
+                                if (!width || width <= 0) return null;
+                                const barHeight = Math.abs(height || 0);
+                                if (barHeight <= 0) return null;
                                 const isSelected = selectedSalesGroup === payload?.label;
-                                const r = Math.min(5, Math.max(0, width / 2), Math.max(0, height));
-                                const d = `M ${x},${y + height} L ${x},${y + r} Q ${x},${y} ${x + r},${y} L ${x + width - r},${y} Q ${x + width},${y} ${x + width},${y + r} L ${x + width},${y + height} Z`;
+                                const isNegative = Number(payload?.profit || 0) < 0;
+                                const fill = isNegative ? C.loss : C.profit;
+                                const r = Math.min(5, Math.max(0, width / 2), barHeight);
+
+                                let d;
+                                if (isNegative) {
+                                  // Bar extends downwards from y (zero line) to y + barHeight with rounded bottom corners
+                                  d = `M ${x},${y} L ${x + width},${y} L ${x + width},${y + barHeight - r} Q ${x + width},${y + barHeight} ${x + width - r},${y + barHeight} L ${x + r},${y + barHeight} Q ${x},${y + barHeight} ${x},${y + barHeight - r} Z`;
+                                } else {
+                                  // Bar extends upwards from zero line (y + barHeight) to y with rounded top corners
+                                  d = `M ${x},${y + barHeight} L ${x},${y + r} Q ${x},${y} ${x + r},${y} L ${x + width - r},${y} Q ${x + width},${y} ${x + width},${y + r} L ${x + width},${y + barHeight} Z`;
+                                }
+
                                 return (
                                   <path
                                     d={d}
-                                    fill={C.profit}
+                                    fill={fill}
                                     stroke={isSelected ? '#000000' : 'none'}
                                     strokeWidth={isSelected ? 2 : 0}
                                     strokeLinejoin="round"
@@ -766,7 +832,7 @@ export default function Reports() {
                     </div>
                   )}
                   <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--color-surface-2)', borderRadius: 10, fontSize: 12, color: 'var(--color-text-secondary)' }}>
-                    💡 {t.salesProfitLegendHint || 'Purple = total collected | Green = your actual profit'}
+                    💡 {t.salesProfitLegendHint || 'Purple = total sales | Green = profit | Red = loss'}
                   </div>
                 </>
               ) : (
@@ -795,7 +861,7 @@ export default function Reports() {
                           margin={{ top: 8, right: 0, left: -6, bottom: 24 }}
                         >
                           <YAxis
-                            domain={[0, batchAxisConfig.yMax]}
+                            domain={[batchAxisConfig.yMin, batchAxisConfig.yMax]}
                             ticks={batchAxisConfig.ticks}
                             tick={{
                               fontSize: 12,
@@ -851,6 +917,11 @@ export default function Reports() {
                               ? { left: `${Math.min(96, pct)}%`, transform: 'translateX(-100%)' }
                               : { left: `${pct}%`, transform: 'translateX(-50%)' };
 
+                          const isLoss = Number(activeBatch.realizedProfit || 0) < 0;
+                          const dotColor = isLoss ? C.loss : (activeBatch.status === 'completed' ? C.completed : C.batch);
+                          const labelText = isLoss ? (t.lossLabel || t.loss || 'Loss') : (t.profitLabel || 'Profit');
+                          const valFormatted = `₹${Math.abs(Number(activeBatch.realizedProfit || 0)).toLocaleString('en-IN')}`;
+
                           return (
                             <div
                               style={{
@@ -877,14 +948,14 @@ export default function Reports() {
                                     width: 8,
                                     height: 8,
                                     borderRadius: '50%',
-                                    background: activeBatch.status === 'completed' ? C.completed : C.batch,
+                                    background: dotColor,
                                   }}
                                 />
                                 <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-                                  {language === 'ta' ? 'லாபம்' : t.profitLabel || 'Profit'}:
+                                  {labelText}:
                                 </span>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)' }}>
-                                  ₹{Number(activeBatch.realizedProfit || 0).toLocaleString('en-IN')}
+                                <span style={{ fontSize: 12, fontWeight: 700, color: isLoss ? C.loss : 'var(--color-text)' }}>
+                                  {valFormatted}
                                 </span>
                               </div>
                             </div>
@@ -901,6 +972,7 @@ export default function Reports() {
                               stroke="var(--color-border)"
                               vertical={false}
                             />
+                            <ReferenceLine y={0} stroke="var(--color-border-dark, #94A3B8)" strokeWidth={1.5} />
                             <XAxis
                               dataKey="label"
                               tick={{
@@ -914,7 +986,7 @@ export default function Reports() {
                               height={24}
                             />
                             <YAxis
-                              domain={[0, batchAxisConfig.yMax]}
+                              domain={[batchAxisConfig.yMin, batchAxisConfig.yMax]}
                               ticks={batchAxisConfig.ticks}
                               hide={true}
                             />
@@ -925,12 +997,24 @@ export default function Reports() {
                               isAnimationActive={false}
                               shape={(props) => {
                                 const { x, y, width, height, payload } = props;
-                                if (!height || height <= 0 || !width || width <= 0) return null;
+                                if (!width || width <= 0) return null;
+                                const barHeight = Math.abs(height || 0);
+                                if (barHeight <= 0) return null;
                                 const itemKey = payload?.id ?? payload?.batchId;
                                 const isSelected = selectedBatchId !== null && selectedBatchId !== undefined && selectedBatchId === itemKey;
-                                const r = Math.min(6, Math.max(0, width / 2), Math.max(0, height));
-                                const d = `M ${x},${y + height} L ${x},${y + r} Q ${x},${y} ${x + r},${y} L ${x + width - r},${y} Q ${x + width},${y} ${x + width},${y + r} L ${x + width},${y + height} Z`;
-                                const fill = payload?.status === 'completed' ? C.completed : C.batch;
+                                const isNegative = Number(payload?.realizedProfit || 0) < 0;
+                                const fill = isNegative ? C.loss : (payload?.status === 'completed' ? C.completed : C.batch);
+                                const r = Math.min(6, Math.max(0, width / 2), barHeight);
+
+                                let d;
+                                if (isNegative) {
+                                  // Bar extends downwards from y (zero line) to y + barHeight with rounded bottom corners
+                                  d = `M ${x},${y} L ${x + width},${y} L ${x + width},${y + barHeight - r} Q ${x + width},${y + barHeight} ${x + width - r},${y + barHeight} L ${x + r},${y + barHeight} Q ${x},${y + barHeight} ${x},${y + barHeight - r} Z`;
+                                } else {
+                                  // Bar extends upwards from zero line (y + barHeight) to y with rounded top corners
+                                  d = `M ${x},${y + barHeight} L ${x},${y + r} Q ${x},${y} ${x + r},${y} L ${x + width - r},${y} Q ${x + width},${y} ${x + width},${y + r} L ${x + width},${y + barHeight} Z`;
+                                }
+
                                 return (
                                   <path
                                     d={d}
@@ -963,10 +1047,13 @@ export default function Reports() {
                       👉 {language === 'ta' ? 'அனைத்து தொகுதிகளையும் பார்க்க நகர்த்தவும்' : 'Scroll horizontally to view all'}
                     </div>
                   )}
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
                     {[
                       { color: C.completed, label: `✅ ${t.batchSoldOut || 'Batch Sold Out'}` },
                       { color: C.batch, label: `🔄 ${t.stillSellingBadge || 'Still Selling'}` },
+                      ...(batchData.some((b) => Number(b.realizedProfit || 0) < 0)
+                        ? [{ color: C.loss, label: `🔻 ${t.loss || 'Loss'}` }]
+                        : []),
                     ].map((l) => (
                       <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--color-text-secondary)' }}>
                         <div style={{ width: 10, height: 10, borderRadius: 3, background: l.color }} />

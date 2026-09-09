@@ -37,8 +37,10 @@ export async function getBatchProfitData() {
         label: `#${batch.batchNumber} (${getShortDate(batch.date)})`,
         realizedProfit: metrics.realizedProfit,
         expectedReturn: metrics.totalExpectedReturn,
-        expectedProfit: metrics.totalExpectedReturn, // backward compatibility
-        grossProfit: metrics.grossProfit, // actual profit without discounts
+        expectedRevenue: metrics.expectedRevenue,
+        expectedProfit: metrics.expectedProfit,
+        profitWithoutDiscount: metrics.profitWithoutDiscount,
+        grossProfit: metrics.grossProfit,
         totalProfit: metrics.realizedProfit,
         status: metrics.status,
         totalInvestment: metrics.totalInvestment || Number(batch.totalInvestment) || 0,

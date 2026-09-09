@@ -44,6 +44,7 @@ export default function Purchases() {
           status: metrics.status,
           totalInvestment: metrics.totalInvestment || Number(batch.totalInvestment) || 0,
           totalSales: metrics.totalSales || 0,
+          expectedProfit: metrics.expectedProfit || 0,
           profitWithoutDiscount: metrics.profitWithoutDiscount || 0,
           realizedProfit: metrics.realizedProfit || 0,
           itemCount: metrics.totalPurchasedQty,
@@ -124,14 +125,32 @@ export default function Purchases() {
                 <span className="batch-card-stat-label">{t.totalSales || 'Total Sales'}</span>
                 <span className="batch-card-stat-value">{formatCurrency(detail.totalSales || 0)}</span>
               </div>
-              {/* 3. Profit Without Discount */}
+              {/* 3. Expected Profit (Calculated from all items at purchase time) */}
               <div className="batch-card-stat">
-                <span className="batch-card-stat-label">{t.profitWithoutDiscount || 'Profit Without Discount'}</span>
+                <span className="batch-card-stat-label">{t.expectedProfit || 'Expected Profit'}</span>
                 <span className="batch-card-stat-value" style={{ color: 'var(--color-primary, #5B1EE6)' }}>
-                  {formatCurrency(detail.profitWithoutDiscount || 0)}
+                  {formatCurrency(detail.expectedProfit ?? 0)}
                 </span>
               </div>
-              {/* 4. Realized Profit */}
+              {/* 4. Extra (if present) */}
+              {detail.extra > 0 && (
+                <div className="batch-card-stat">
+                  <span className="batch-card-stat-label">{t.extra || 'Extra'}</span>
+                  <span className="batch-card-stat-value" style={{ color: '#10B981' }}>
+                    +{formatCurrency(detail.extra)}
+                  </span>
+                </div>
+              )}
+              {/* 5. Discount (if present) */}
+              {detail.discount > 0 && (
+                <div className="batch-card-stat">
+                  <span className="batch-card-stat-label">{t.discount || 'Discount'}</span>
+                  <span className="batch-card-stat-value" style={{ color: '#EF4444' }}>
+                    -{formatCurrency(detail.discount)}
+                  </span>
+                </div>
+              )}
+              {/* 6. Realized Profit - LAST */}
               <div className="batch-card-stat">
                 <span className="batch-card-stat-label">{t.realizedProfit || 'Realized Profit'}</span>
                 <span className="batch-card-stat-value" style={{ color: (detail.realizedProfit || 0) >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
@@ -163,7 +182,6 @@ export default function Purchases() {
 
             {/* Items in batch */}
             {selectedBatchMetrics.lots.map((lot) => {
-              const isMultiItem = selectedBatchMetrics.lots.length > 1;
               const isSoldOut = lot.remainingQty === 0;
 
               return (
@@ -249,8 +267,10 @@ export default function Purchases() {
             {/* Batch Summary in exact required order:
                 1. Total Investment
                 2. Total Sales
-                3. Profit Without Discount
-                4. Realized Profit */}
+                3. Expected Profit (Profit Without Discount)
+                4. Extra (if present)
+                5. Discount (if present)
+                6. Realized Profit (LAST) */}
             <div className="summary-row">
               <span className="summary-row-label">{t.totalInvestment}</span>
               <span className="summary-row-value">{formatCurrency(selectedBatchMetrics.totalInvestment)}</span>
@@ -260,26 +280,12 @@ export default function Purchases() {
               <span className="summary-row-value">{formatCurrency(selectedBatchMetrics.totalSales || selectedBatchMetrics.totalRevenue || 0)}</span>
             </div>
             <div className="summary-row">
-              <span className="summary-row-label">{t.profitWithoutDiscount || 'Profit Without Discount'}</span>
+              <span className="summary-row-label">{t.expectedProfit || 'Expected Profit'}</span>
               <span className="summary-row-value" style={{ color: 'var(--color-primary, #5B1EE6)', fontWeight: 700 }}>
-                {formatCurrency(selectedBatchMetrics.profitWithoutDiscount || selectedBatchMetrics.grossProfit || 0)}
-              </span>
-            </div>
-            <div className="summary-row">
-              <span className="summary-row-label">{t.realizedProfit}</span>
-              <span className={`summary-row-value ${selectedBatchMetrics.realizedProfit >= 0 ? 'profit' : 'loss'}`}>
-                {formatCurrency(selectedBatchMetrics.realizedProfit)}
+                {formatCurrency(selectedBatchMetrics.expectedProfit ?? 0)}
               </span>
             </div>
 
-            {selectedBatchMetrics.totalDiscount > 0 && (
-              <div className="summary-row">
-                <span className="summary-row-label">{t.discount}</span>
-                <span className="summary-row-value" style={{ color: '#EF4444', fontWeight: 700 }}>
-                  -{formatCurrency(selectedBatchMetrics.totalDiscount)}
-                </span>
-              </div>
-            )}
             {selectedBatchMetrics.totalExtra > 0 && (
               <div className="summary-row">
                 <span className="summary-row-label">{t.extra || 'Extra'}</span>
@@ -289,23 +295,25 @@ export default function Purchases() {
               </div>
             )}
 
-            {selectedBatchMetrics.totalRemainingQty > 0 && (
-              <>
-                <div className="summary-row">
-                  <span className="summary-row-label">{t.remainingStock || 'Remaining Stock'}</span>
-                  <span className="summary-row-value">{selectedBatchMetrics.totalRemainingQty} {t.pieces}</span>
-                </div>
-                <div className="summary-row">
-                  <span className="summary-row-label">{t.expectedReturn || 'Expected Return'}</span>
-                  <span className="summary-row-value" style={{ color: 'var(--color-text-secondary)', fontWeight: 700 }}>
-                    {formatCurrency(selectedBatchMetrics.totalExpectedReturn)}
-                  </span>
-                </div>
-              </>
+            {selectedBatchMetrics.totalDiscount > 0 && (
+              <div className="summary-row">
+                <span className="summary-row-label">{t.discount}</span>
+                <span className="summary-row-value" style={{ color: '#EF4444', fontWeight: 700 }}>
+                  -{formatCurrency(selectedBatchMetrics.totalDiscount)}
+                </span>
+              </div>
             )}
+
+            <div className="summary-row">
+              <span className="summary-row-label">{t.realizedProfit}</span>
+              <span className={`summary-row-value ${selectedBatchMetrics.realizedProfit >= 0 ? 'profit' : 'loss'}`}>
+                {formatCurrency(selectedBatchMetrics.realizedProfit)}
+              </span>
+            </div>
           </>
         )}
       </Modal>
     </div>
   );
 }
+

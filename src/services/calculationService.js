@@ -188,6 +188,7 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
   let totalRemainingQty = 0;
   let totalRemainingInvestment = 0;
   let totalExpectedRevenue = 0;
+  let totalExpectedProfit = 0;
   let totalProfitWithoutDiscount = 0;
 
   const enrichedLots = lots.map((lot) => {
@@ -245,7 +246,8 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
     const lotInvestment = roundCurrency(pQty * bPrice);
     const lotRemainingInvestment = roundCurrency(rQty * bPrice);
     const lotExpectedReturn = rQty > 0 ? roundCurrency(rQty * sPrice) : 0;
-    const lotExpectedRevenue = roundCurrency(lotSoldQty * sPrice);
+    const lotExpectedRevenue = roundCurrency(pQty * sPrice);
+    const lotExpectedProfit = roundCurrency(pQty * (sPrice - bPrice));
     const lotProfitWithoutDiscount = roundCurrency(lotSoldQty * (sPrice - bPrice));
 
     totalInvestment += lotInvestment;
@@ -259,6 +261,7 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
     totalRemainingQty += rQty;
     totalRemainingInvestment += lotRemainingInvestment;
     totalExpectedRevenue += lotExpectedRevenue;
+    totalExpectedProfit += lotExpectedProfit;
     totalProfitWithoutDiscount += lotProfitWithoutDiscount;
 
     return {
@@ -287,7 +290,7 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
       realizedProfit: roundCurrency(lotRealizedProfit),
       expectedReturn: lotExpectedReturn,
       expectedRevenue: lotExpectedRevenue,
-      expectedProfit: lotProfitWithoutDiscount,
+      expectedProfit: lotExpectedProfit,
     };
   });
 
@@ -317,7 +320,8 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
     grossProfit: roundCurrency(totalProfitWithoutDiscount), // backward compatibility
     realizedProfit: roundCurrency(totalRealizedProfit),
     expectedRevenue: roundCurrency(totalExpectedRevenue),
-    expectedProfit: roundCurrency(totalProfitWithoutDiscount),
+    expectedProfit: roundCurrency(totalExpectedProfit),
+    totalExpectedProfit: roundCurrency(totalExpectedProfit),
     totalExpectedReturn: roundCurrency(enrichedLots.reduce((sum, l) => sum + l.expectedReturn, 0)),
     averageActualSalePrice,
     status,
