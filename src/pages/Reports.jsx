@@ -5,13 +5,12 @@ import { formatProductDisplayName } from '../utils/transliterate';
 import { getBatchProfitData, getPeriodicSummary, getProductPerformance } from '../services/reportService';
 import { exportReportToExcel } from '../utils/exportExcel';
 import PageHeader from '../components/layout/PageHeader';
-import Modal from '../components/ui/Modal';
 import EmptyState from '../components/ui/EmptyState';
 import { FileSpreadsheet } from 'lucide-react';
 import db from '../db/database';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
-  Cell, Tooltip, Legend
+  Legend
 } from 'recharts';
 
 /* ─── Palette ─────────────────────────────────────────── */
@@ -249,7 +248,6 @@ export default function Reports() {
   const [batchData, setBatchData] = useState([]);
   const [summary, setSummary] = useState(null);
   const [topProducts, setTopProducts] = useState([]);
-  const [selectedBar, setSelectedBar] = useState(null);
   const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [selectedSalesGroup, setSelectedSalesGroup] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -262,6 +260,11 @@ export default function Reports() {
     { key: 'year',  label: t.yearly || 'Yearly' },
     { key: 'all',   label: t.allTime || 'All Time' },
   ], [t]);
+
+  useEffect(() => {
+    setSelectedSalesGroup(null);
+    setSelectedBatchId(null);
+  }, [timeframe]);
 
   useEffect(() => {
     let isMounted = true;
@@ -579,6 +582,7 @@ export default function Reports() {
                     >
                       <div
                         style={{
+                          position: 'relative',
                           width:
                             salesProfitData.length > 5
                               ? `${Math.max(280, salesProfitData.length * 58)}px`
@@ -587,6 +591,59 @@ export default function Reports() {
                           height: 235,
                         }}
                       >
+                        {/* Persistent Synchronized Tooltip for Sales & Profit */}
+                        {(() => {
+                          if (!selectedSalesGroup) return null;
+                          const activeItem = salesProfitData.find((d) => d.label === selectedSalesGroup);
+                          if (!activeItem) return null;
+                          const idx = salesProfitData.findIndex((d) => d.label === selectedSalesGroup);
+                          const total = salesProfitData.length;
+                          const pct = total > 0 ? ((idx + 0.5) / total) * 100 : 50;
+                          const posStyle =
+                            pct < 20
+                              ? { left: `${Math.max(4, pct)}%`, transform: 'translateX(0)' }
+                              : pct > 80
+                              ? { left: `${Math.min(96, pct)}%`, transform: 'translateX(-100%)' }
+                              : { left: `${pct}%`, transform: 'translateX(-50%)' };
+
+                          return (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                ...posStyle,
+                                top: 6,
+                                background: 'var(--color-surface, #ffffff)',
+                                border: '1px solid var(--color-border, #e2e8f0)',
+                                borderRadius: 10,
+                                padding: '8px 12px',
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+                                minWidth: 125,
+                                zIndex: 20,
+                                pointerEvents: 'none',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 4, fontWeight: 700 }}>
+                                {activeItem.label}
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.sales }} />
+                                <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>{t.salesLabel || 'Sales'}:</span>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)' }}>
+                                  ₹{Number(activeItem.sales || 0).toLocaleString('en-IN')}
+                                </span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.profit }} />
+                                <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>{t.profitLabel || 'Profit'}:</span>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)' }}>
+                                  ₹{Number(activeItem.profit || 0).toLocaleString('en-IN')}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart
                             data={salesProfitData}
@@ -615,7 +672,6 @@ export default function Reports() {
                               ticks={salesAxisConfig.ticks}
                               hide={true}
                             />
-                            <Tooltip cursor={false} content={<ChartTooltip />} />
                             <Legend
                               iconType="circle"
                               iconSize={8}
@@ -625,66 +681,60 @@ export default function Reports() {
                               dataKey="sales"
                               name={t.salesLabel || 'Sales'}
                               fill={C.sales}
-                              radius={[5, 5, 0, 0]}
                               maxBarSize={26}
-                              cursor="pointer"
-                              stroke="none"
-                              strokeWidth={0}
-                              onClick={(data, index, e) => {
-                                if (e && e.stopPropagation) e.stopPropagation();
-                                if (data?.label) {
-                                  setSelectedSalesGroup(data.label);
-                                }
-                              }}
-                            >
-                              {salesProfitData.map((entry, index) => {
-                                const isSelected = selectedSalesGroup === entry.label;
+                              isAnimationActive={false}
+                              shape={(props) => {
+                                const { x, y, width, height, payload } = props;
+                                if (!height || height <= 0 || !width || width <= 0) return null;
+                                const isSelected = selectedSalesGroup === payload?.label;
+                                const r = Math.min(5, Math.max(0, width / 2), Math.max(0, height));
+                                const d = `M ${x},${y + height} L ${x},${y + r} Q ${x},${y} ${x + r},${y} L ${x + width - r},${y} Q ${x + width},${y} ${x + width},${y + r} L ${x + width},${y + height} Z`;
                                 return (
-                                  <Cell
-                                    key={`sales-cell-${entry.label || index}`}
+                                  <path
+                                    d={d}
                                     fill={C.sales}
                                     stroke={isSelected ? '#000000' : 'none'}
                                     strokeWidth={isSelected ? 2 : 0}
+                                    strokeLinejoin="round"
+                                    strokeLinecap="round"
+                                    style={{ cursor: 'pointer' }}
                                     onClick={(e) => {
                                       if (e && e.stopPropagation) e.stopPropagation();
-                                      setSelectedSalesGroup(entry.label);
+                                      if (payload?.label) setSelectedSalesGroup(payload.label);
                                     }}
                                   />
                                 );
-                              })}
-                            </Bar>
+                              }}
+                            />
                             <Bar
                               dataKey="profit"
                               name={t.profitLabel || 'Profit'}
                               fill={C.profit}
-                              radius={[5, 5, 0, 0]}
                               maxBarSize={26}
-                              cursor="pointer"
-                              stroke="none"
-                              strokeWidth={0}
-                              onClick={(data, index, e) => {
-                                if (e && e.stopPropagation) e.stopPropagation();
-                                if (data?.label) {
-                                  setSelectedSalesGroup(data.label);
-                                }
-                              }}
-                            >
-                              {salesProfitData.map((entry, index) => {
-                                const isSelected = selectedSalesGroup === entry.label;
+                              isAnimationActive={false}
+                              shape={(props) => {
+                                const { x, y, width, height, payload } = props;
+                                if (!height || height <= 0 || !width || width <= 0) return null;
+                                const isSelected = selectedSalesGroup === payload?.label;
+                                const r = Math.min(5, Math.max(0, width / 2), Math.max(0, height));
+                                const d = `M ${x},${y + height} L ${x},${y + r} Q ${x},${y} ${x + r},${y} L ${x + width - r},${y} Q ${x + width},${y} ${x + width},${y + r} L ${x + width},${y + height} Z`;
                                 return (
-                                  <Cell
-                                    key={`profit-cell-${entry.label || index}`}
+                                  <path
+                                    d={d}
                                     fill={C.profit}
                                     stroke={isSelected ? '#000000' : 'none'}
                                     strokeWidth={isSelected ? 2 : 0}
+                                    strokeLinejoin="round"
+                                    strokeLinecap="round"
+                                    style={{ cursor: 'pointer' }}
                                     onClick={(e) => {
                                       if (e && e.stopPropagation) e.stopPropagation();
-                                      setSelectedSalesGroup(entry.label);
+                                      if (payload?.label) setSelectedSalesGroup(payload.label);
                                     }}
                                   />
                                 );
-                              })}
-                            </Bar>
+                              }}
+                            />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
@@ -758,6 +808,7 @@ export default function Reports() {
                     >
                       <div
                         style={{
+                          position: 'relative',
                           width:
                             batchData.length > 4
                               ? `${Math.max(280, batchData.length * 64)}px`
@@ -766,6 +817,61 @@ export default function Reports() {
                           height: 215,
                         }}
                       >
+                        {/* Persistent Synchronized Tooltip for Batch Profit */}
+                        {(() => {
+                          if (!selectedBatchId) return null;
+                          const activeBatch = batchData.find((b) => b.id === selectedBatchId);
+                          if (!activeBatch) return null;
+                          const idx = batchData.findIndex((b) => b.id === selectedBatchId);
+                          const total = batchData.length;
+                          const pct = total > 0 ? ((idx + 0.5) / total) * 100 : 50;
+                          const posStyle =
+                            pct < 20
+                              ? { left: `${Math.max(4, pct)}%`, transform: 'translateX(0)' }
+                              : pct > 80
+                              ? { left: `${Math.min(96, pct)}%`, transform: 'translateX(-100%)' }
+                              : { left: `${pct}%`, transform: 'translateX(-50%)' };
+
+                          return (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                ...posStyle,
+                                top: 6,
+                                background: 'var(--color-surface, #ffffff)',
+                                border: '1px solid var(--color-border, #e2e8f0)',
+                                borderRadius: 10,
+                                padding: '8px 12px',
+                                boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+                                minWidth: 120,
+                                zIndex: 20,
+                                pointerEvents: 'none',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 4, fontWeight: 700 }}>
+                                {activeBatch.label}
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <div
+                                  style={{
+                                    width: 8,
+                                    height: 8,
+                                    borderRadius: '50%',
+                                    background: activeBatch.status === 'completed' ? C.completed : C.batch,
+                                  }}
+                                />
+                                <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                                  {language === 'ta' ? 'லாபம்' : t.profitLabel || 'Profit'}:
+                                </span>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)' }}>
+                                  ₹{Number(activeBatch.realizedProfit || 0).toLocaleString('en-IN')}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart
                             data={batchData}
@@ -793,40 +899,35 @@ export default function Reports() {
                               ticks={batchAxisConfig.ticks}
                               hide={true}
                             />
-                            <Tooltip cursor={false} content={<ChartTooltip />} />
                             <Bar
                               dataKey="realizedProfit"
                               name={t.profitLabel || 'Profit'}
-                              radius={[6, 6, 0, 0]}
-                              cursor="pointer"
                               maxBarSize={32}
-                              stroke="none"
-                              strokeWidth={0}
-                              onClick={(data, index, e) => {
-                                if (e && e.stopPropagation) e.stopPropagation();
-                                if (data) {
-                                  setSelectedBatchId(data.id);
-                                  setSelectedBar(data);
-                                }
-                              }}
-                            >
-                              {batchData.map((entry, index) => {
-                                const isSelected = selectedBatchId === entry.id;
+                              isAnimationActive={false}
+                              shape={(props) => {
+                                const { x, y, width, height, payload } = props;
+                                if (!height || height <= 0 || !width || width <= 0) return null;
+                                const isSelected = selectedBatchId === payload?.id;
+                                const r = Math.min(6, Math.max(0, width / 2), Math.max(0, height));
+                                const d = `M ${x},${y + height} L ${x},${y + r} Q ${x},${y} ${x + r},${y} L ${x + width - r},${y} Q ${x + width},${y} ${x + width},${y + r} L ${x + width},${y + height} Z`;
+                                const fill = payload?.status === 'completed' ? C.completed : C.batch;
                                 return (
-                                  <Cell
-                                    key={`batch-cell-${entry.id || index}`}
-                                    fill={entry.status === 'completed' ? C.completed : C.batch}
+                                  <path
+                                    d={d}
+                                    fill={fill}
                                     stroke={isSelected ? '#000000' : 'none'}
                                     strokeWidth={isSelected ? 2 : 0}
+                                    strokeLinejoin="round"
+                                    strokeLinecap="round"
+                                    style={{ cursor: 'pointer' }}
                                     onClick={(e) => {
                                       if (e && e.stopPropagation) e.stopPropagation();
-                                      setSelectedBatchId(entry.id);
-                                      setSelectedBar(entry);
+                                      if (payload?.id !== undefined) setSelectedBatchId(payload.id);
                                     }}
                                   />
                                 );
-                              })}
-                            </Bar>
+                              }}
+                            />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
@@ -841,8 +942,8 @@ export default function Reports() {
                   <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 10 }}>
                     {[
                       { color: C.completed, label: `✅ ${t.batchSoldOut || 'Batch Sold Out'}` },
-                      { color: C.batch, label: `🔄 ${t.stillSellingBadge || 'Still Selling'}` }
-                    ].map(l => (
+                      { color: C.batch, label: `🔄 ${t.stillSellingBadge || 'Still Selling'}` },
+                    ].map((l) => (
                       <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--color-text-secondary)' }}>
                         <div style={{ width: 10, height: 10, borderRadius: 3, background: l.color }} />
                         {l.label}
@@ -941,39 +1042,6 @@ export default function Reports() {
           )}
         </>
       )}
-
-      {/* ── Batch Detail Modal ── */}
-      <Modal isOpen={!!selectedBar} onClose={() => setSelectedBar(null)} title={selectedBar ? `${t.batch || 'Batch'} #${selectedBar.batchNumber}` : ''}>
-        {selectedBar && (
-          <>
-            <div style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-lg)', fontSize: 13 }}>
-              📅 {selectedBar.label}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[
-                { label: `💵 ${t.purchaseCost || 'Purchase Cost'}`, value: formatCurrency(selectedBar.totalInvestment), color: C.expense },
-                { label: `✅ ${t.realizedProfit || 'Realized Profit'}`, value: formatCurrency(selectedBar.realizedProfit), color: C.profit },
-                ...(selectedBar.status !== 'completed' ? [{ label: `⏳ ${t.remainingProfit || 'Remaining Profit'}`, value: formatCurrency(selectedBar.expectedProfit), color: C.sales }] : []),
-              ].map((row, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--color-surface-2)', borderRadius: 10 }}>
-                  <span style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontWeight: 600 }}>{row.label}</span>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: row.color }}>{row.value}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ marginTop: 'var(--space-lg)', textAlign: 'center' }}>
-              <span style={{
-                display: 'inline-block', padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: 700,
-                background: selectedBar.status === 'completed' ? '#22C55E20' : '#5B1EE620',
-                color: selectedBar.status === 'completed' ? '#16A34A' : '#5B1EE6',
-                border: `1px solid ${selectedBar.status === 'completed' ? '#22C55E40' : '#5B1EE640'}`,
-              }}>
-                {selectedBar.status === 'completed' ? `✅ ${t.batchSoldOut || 'Batch Sold Out'}` : `🔄 ${t.stillSellingBadge || 'Still Selling'}`}
-              </span>
-            </div>
-          </>
-        )}
-      </Modal>
     </div>
   );
 }
