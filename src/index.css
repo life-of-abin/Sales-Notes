@@ -78,14 +78,14 @@
 
   /* Typography — Relative REM tokens bound to dynamic root font scaling */
   --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-size-xs: 0.73rem;
-  --font-size-sm: 0.86rem;
-  --font-size-base: 1rem;
-  --font-size-lg: 1.13rem;
-  --font-size-xl: 1.33rem;
-  --font-size-2xl: 1.6rem;
-  --font-size-3xl: 2rem;
-  --font-size-4xl: 2.4rem;
+  --font-size-xs: 0.78rem;
+  --font-size-sm: 0.92rem;
+  --font-size-base: 1.05rem;
+  --font-size-lg: 1.22rem;
+  --font-size-xl: 1.48rem;
+  --font-size-2xl: 1.78rem;
+  --font-size-3xl: 2.2rem;
+  --font-size-4xl: 2.65rem;
 
   /* Transitions */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -109,8 +109,8 @@
 }
 
 html {
-  /* Dynamic Fluid Root Scaling: Scales automatically between 13.5px on compact 320px screens to 16px on modern 390-480px screens */
-  font-size: clamp(13.5px, calc(13px + 0.8vw), 16px);
+  /* Dynamic Fluid Root Scaling: Increased for optimal readability and accessibility */
+  font-size: clamp(14.5px, calc(14px + 0.85vw), 17px);
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
   scroll-behavior: smooth;
@@ -253,8 +253,8 @@ ul, ol {
 }
 
 .nav-item span {
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 750;
   letter-spacing: -0.2px;
   transition: all 200ms ease;
   line-height: 1;
@@ -277,7 +277,7 @@ ul, ol {
 
 .nav-item.active span {
   color: var(--color-primary);
-  font-weight: 800;
+  font-weight: 850;
   transform: translateY(-2px);
 }
 
@@ -287,14 +287,15 @@ ul, ol {
   align-items: center;
   justify-content: space-between;
   padding: var(--space-md) 0 var(--space-lg);
-  margin-bottom: var(--space-sm);
+  margin-bottom: var(--space-xs);
 }
 
 .page-header h1 {
-  font-size: var(--font-size-xl);
-  font-weight: 800;
+  font-size: clamp(1.48rem, 5vw, 1.85rem);
+  font-weight: 850;
   color: var(--color-text);
   letter-spacing: -0.5px;
+  line-height: 1.25;
 }
 
 .page-header-back {

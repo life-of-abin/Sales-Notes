@@ -15,11 +15,11 @@ import {
 
 /* ─── Palette ─────────────────────────────────────────── */
 const C = {
-  sales:    '#6C63FF',
-  profit:   '#22C55E',
+  sales:    '#5B1EE6',
+  profit:   '#10B981',
   expense:  '#F97316',
   batch:    '#5B1EE6',
-  completed:'#22C55E',
+  completed:'#10B981',
   stock:    '#0EA5E9',
 };
 
@@ -180,7 +180,7 @@ function buildInsights(summary, topProducts, batchData, language = 'en') {
     tips.push({
       emoji: '💡',
       text: isTa ? `லாப சதவீதம் ${pm}% மட்டுமே. விற்பனை விலையை சற்று உயர்த்த முயற்சிக்கலாம்.` : `Profit margin is only ${pm}%. Try increasing your selling price a little.`,
-      color: '#6C63FF'
+      color: '#5B1EE6'
     });
   }
 
@@ -202,7 +202,7 @@ function buildInsights(summary, topProducts, batchData, language = 'en') {
     tips.push({
       emoji: '📦',
       text: isTa ? `${salesCount} விற்பனைகள் மட்டுமே நடந்துள்ளன. வாடிக்கையாளர்களுக்கு விளம்பரப்படுத்துங்கள்!` : `Made ${salesCount} sale${salesCount > 1 ? 's' : ''} this period. Try promoting more!`,
-      color: '#6C63FF'
+      color: '#5B1EE6'
     });
   } else {
     tips.push({
@@ -497,7 +497,7 @@ export default function Reports() {
             fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.2s',
             background: timeframe === tab.key ? 'var(--color-primary)' : 'var(--color-surface-2)',
             color: timeframe === tab.key ? '#fff' : 'var(--color-text-secondary)',
-            boxShadow: timeframe === tab.key ? '0 2px 8px rgba(108,99,255,0.35)' : 'none',
+            boxShadow: timeframe === tab.key ? '0 2px 8px rgba(91, 30, 230, 0.35)' : 'none',
           }}>
             {tab.label}
           </button>
