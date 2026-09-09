@@ -49,15 +49,15 @@
   --color-purple: #8B5CF6;
   --color-rose: #F43F5E;
 
-  /* Spacing */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 12px;
-  --space-lg: 16px;
-  --space-xl: 20px;
-  --space-2xl: 24px;
-  --space-3xl: 32px;
-  --space-4xl: 40px;
+  /* Responsive Fluid Spacing (scales smoothly with screen width) */
+  --space-xs: clamp(3px, 1vw, 4px);
+  --space-sm: clamp(6px, 1.8vw, 8px);
+  --space-md: clamp(10px, 2.8vw, 12px);
+  --space-lg: clamp(14px, 3.8vw, 16px);
+  --space-xl: clamp(16px, 4.5vw, 20px);
+  --space-2xl: clamp(20px, 5.5vw, 24px);
+  --space-3xl: clamp(26px, 7vw, 32px);
+  --space-4xl: clamp(32px, 9vw, 40px);
 
   /* Radii */
   --radius-sm: 8px;
@@ -76,25 +76,26 @@
   --shadow-button: 0 6px 20px rgba(91, 30, 230, 0.28);
   --shadow-gold: 0 6px 20px rgba(245, 166, 9, 0.35);
 
-  /* Typography */
+  /* Typography — Relative REM tokens bound to dynamic root font scaling */
   --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-size-xs: 11px;
-  --font-size-sm: 13px;
-  --font-size-base: 15px;
-  --font-size-lg: 17px;
-  --font-size-xl: 20px;
-  --font-size-2xl: 24px;
-  --font-size-3xl: 30px;
-  --font-size-4xl: 36px;
+  --font-size-xs: 0.73rem;
+  --font-size-sm: 0.86rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.13rem;
+  --font-size-xl: 1.33rem;
+  --font-size-2xl: 1.6rem;
+  --font-size-3xl: 2rem;
+  --font-size-4xl: 2.4rem;
 
   /* Transitions */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Layout */
-  --bottom-nav-height: 68px;
-  --header-height: 58px;
+  /* Layout & Touch Target Standards */
+  --min-touch-target: 44px;
+  --bottom-nav-height: clamp(62px, 16vw, 68px);
+  --header-height: clamp(52px, 13vw, 58px);
   --max-width: 480px;
 }
 
@@ -108,9 +109,12 @@
 }
 
 html {
+  /* Dynamic Fluid Root Scaling: Scales automatically between 13.5px on compact 320px screens to 16px on modern 390-480px screens */
+  font-size: clamp(13.5px, calc(13px + 0.8vw), 16px);
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
   scroll-behavior: smooth;
+  touch-action: manipulation;
 }
 
 body {
@@ -148,6 +152,7 @@ button {
   border: none;
   background: none;
   -webkit-appearance: none;
+  touch-action: manipulation;
 }
 
 input,
@@ -186,14 +191,14 @@ ul, ol {
 .page-content {
   flex: 1;
   padding: var(--space-lg);
-  padding-bottom: calc(var(--bottom-nav-height) + var(--space-3xl));
+  padding-bottom: calc(var(--bottom-nav-height) + var(--space-3xl) + env(safe-area-inset-bottom, 0px));
   animation: fadeIn var(--transition-base);
 }
 
 /* --- Bottom Navigation: Floating Glass Dock --- */
 .bottom-nav-container {
   position: fixed;
-  bottom: 12px;
+  bottom: max(10px, env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
   width: 100%;
@@ -206,7 +211,7 @@ ul, ol {
 .bottom-nav {
   pointer-events: auto;
   width: 100%;
-  height: 68px;
+  height: var(--bottom-nav-height);
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(28px) saturate(190%);
   -webkit-backdrop-filter: blur(28px) saturate(190%);
@@ -215,7 +220,7 @@ ul, ol {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  padding: 6px 6px;
+  padding: 4px 6px;
   box-shadow: 0 16px 36px -6px rgba(91, 30, 230, 0.22),
               0 4px 16px -2px rgba(245, 166, 9, 0.15),
               inset 0 1px 2px rgba(255, 255, 255, 0.95);
@@ -228,12 +233,12 @@ ul, ol {
   align-items: center;
   justify-content: center;
   gap: 2px;
-  padding: 4px 8px;
+  padding: 4px clamp(4px, 1.5vw, 8px);
   border-radius: var(--radius-xl);
   color: var(--color-text-tertiary);
   transition: all 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
   position: relative;
-  min-width: 54px;
+  min-width: clamp(46px, 12vw, 54px);
   user-select: none;
 }
 
@@ -510,7 +515,7 @@ ul, ol {
 /* --- Dashboard Grid --- */
 .stats-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-md);
   margin-bottom: var(--space-xl);
 }
@@ -523,22 +528,23 @@ ul, ol {
 }
 
 .action-btn {
-  flex: 1;
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: var(--space-sm);
-  padding: var(--space-xl) var(--space-md);
+  padding: clamp(12px, 3.5vw, 20px) clamp(6px, 1.5vw, 12px);
   border-radius: var(--radius-xl);
   font-weight: 800;
   font-size: var(--font-size-base);
   letter-spacing: -0.3px;
   transition: all var(--transition-fast);
   box-shadow: var(--shadow-button);
-  min-height: 94px;
+  min-height: clamp(82px, 22vw, 96px);
   position: relative;
   overflow: hidden;
+  text-align: center;
 }
 
 .action-btn::after {
@@ -578,14 +584,14 @@ ul, ol {
 /* --- Product Card --- */
 .product-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-md);
 }
 
 .product-card {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
-  padding: var(--space-lg);
+  padding: clamp(12px, 3.5vw, 16px);
   box-shadow: var(--shadow-card);
   text-align: center;
   transition: all var(--transition-fast);
@@ -733,14 +739,23 @@ ul, ol {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-sm);
-  padding: var(--space-lg) var(--space-2xl);
+  gap: clamp(6px, 1.8vw, 8px);
+  padding: clamp(10px, 2.8vw, 14px) clamp(14px, 3.8vw, 20px);
   border-radius: var(--radius-md);
   font-weight: 700;
   font-size: var(--font-size-base);
   transition: all var(--transition-fast);
-  min-height: 52px;
+  min-height: clamp(46px, 11vw, 52px);
   width: 100%;
+  box-sizing: border-box;
+}
+
+.btn svg,
+.btn .lucide,
+.btn .icon {
+  width: 1.25em;
+  height: 1.25em;
+  flex-shrink: 0;
 }
 
 .btn:active {
@@ -1015,6 +1030,7 @@ ul, ol {
   background: var(--color-surface);
   border-radius: var(--radius-xl) var(--radius-xl) 0 0;
   padding: var(--space-2xl);
+  padding-bottom: max(var(--space-2xl), calc(var(--space-xl) + env(safe-area-inset-bottom, 0px)));
   width: 100%;
   max-width: var(--max-width);
   max-height: 85dvh;
