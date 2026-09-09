@@ -1,94 +1,43 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useBusiness } from '../hooks/useBusiness';
+import { useCalculator } from '../context/CalculatorContext';
 import { formatCurrency } from '../utils/formatCurrency';
 import PageHeader from '../components/layout/PageHeader';
 import CurrencyInput from '../components/ui/CurrencyInput';
+import { Minimize2, History, Trash2, X } from 'lucide-react';
 
 export default function Calculator() {
+  const navigate = useNavigate();
   const { t } = useBusiness();
-  const [mode, setMode] = useState('standard'); // standard | business
-  const [display, setDisplay] = useState('0');
-  const [expression, setExpression] = useState('');
-  const [lastOp, setLastOp] = useState(null);
-  const [prevValue, setPrevValue] = useState(null);
-  const [newNumber, setNewNumber] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
 
-  // Business mode
-  const [buyPrice, setBuyPrice] = useState('');
-  const [sellPrice, setSellPrice] = useState('');
-  const [qty, setQty] = useState('1');
+  const {
+    mode,
+    setMode,
+    display,
+    expression,
+    buyPrice,
+    setBuyPrice,
+    sellPrice,
+    setSellPrice,
+    qty,
+    setQty,
+    history,
+    clearHistory,
+    restoreHistoryItem,
+    minimizeCalculator,
+    handleNumber,
+    handleDecimal,
+    handleOperator,
+    handleEquals,
+    handleClear,
+    handleBackspace,
+  } = useCalculator();
 
-  // Standard calculator
-  const handleNumber = (num) => {
-    if (newNumber) {
-      setDisplay(String(num));
-      setNewNumber(false);
-    } else {
-      setDisplay(display === '0' ? String(num) : display + num);
-    }
-  };
-
-  const handleDecimal = () => {
-    if (newNumber) {
-      setDisplay('0.');
-      setNewNumber(false);
-    } else if (!display.includes('.')) {
-      setDisplay(display + '.');
-    }
-  };
-
-  const handleOperator = (op) => {
-    const current = parseFloat(display);
-    if (prevValue !== null && !newNumber) {
-      const result = calculate(prevValue, current, lastOp);
-      setDisplay(String(result));
-      setPrevValue(result);
-      setExpression(`${result} ${op}`);
-    } else {
-      setPrevValue(current);
-      setExpression(`${current} ${op}`);
-    }
-    setLastOp(op);
-    setNewNumber(true);
-  };
-
-  const calculate = (a, b, op) => {
-    switch (op) {
-      case '+': return a + b;
-      case '−': return a - b;
-      case '×': return a * b;
-      case '÷': return b !== 0 ? a / b : 0;
-      case '%': return a * (b / 100);
-      default: return b;
-    }
-  };
-
-  const handleEquals = () => {
-    if (prevValue === null || lastOp === null) return;
-    const current = parseFloat(display);
-    const result = calculate(prevValue, current, lastOp);
-    setExpression(`${prevValue} ${lastOp} ${current} =`);
-    setDisplay(String(Math.round(result * 100) / 100));
-    setPrevValue(null);
-    setLastOp(null);
-    setNewNumber(true);
-  };
-
-  const handleClear = () => {
-    setDisplay('0');
-    setExpression('');
-    setPrevValue(null);
-    setLastOp(null);
-    setNewNumber(true);
-  };
-
-  const handleBackspace = () => {
-    if (display.length <= 1 || newNumber) {
-      setDisplay('0');
-      setNewNumber(true);
-    } else {
-      setDisplay(display.slice(0, -1));
-    }
+  const handleMinimize = () => {
+    minimizeCalculator();
+    navigate(-1);
   };
 
   // Business calculations
@@ -123,12 +72,51 @@ export default function Calculator() {
     { label: '=', action: handleEquals, type: 'action' },
   ];
 
+  const headerRight = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      {mode === 'standard' && (
+        <button
+          type="button"
+          onClick={() => setShowHistory(!showHistory)}
+          className={`privacy-btn ${showHistory ? 'active' : ''}`}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '6px 10px',
+            fontSize: 'var(--font-size-xs)',
+          }}
+          title={t.history || 'History'}
+        >
+          <History size={14} />
+          <span>{history?.length || 0}</span>
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={handleMinimize}
+        className="privacy-btn active"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '6px 12px',
+          fontSize: 'var(--font-size-xs)',
+        }}
+        title={t.minimize || 'Minimize'}
+      >
+        <Minimize2 size={14} />
+        <span>{t.minimize || 'Minimize'}</span>
+      </button>
+    </div>
+  );
+
   return (
     <div className="page-content">
-      <PageHeader title={t.calculator} showBack />
+      <PageHeader title={t.calculator} showBack rightAction={headerRight} />
 
       {/* Mode Switcher */}
-      <div className="tab-switcher">
+      <div className="tab-switcher" style={{ marginBottom: 'var(--space-lg)' }}>
         <button
           className={`tab-switcher-btn ${mode === 'standard' ? 'active' : ''}`}
           onClick={() => setMode('standard')}
@@ -147,6 +135,78 @@ export default function Calculator() {
 
       {mode === 'standard' ? (
         <>
+          {/* History Drawer / Panel */}
+          {showHistory && (
+            <div
+              className="card animate-pop"
+              style={{
+                marginBottom: 'var(--space-md)',
+                padding: 'var(--space-md)',
+                maxHeight: '200px',
+                overflowY: 'auto',
+                border: '1.5px solid var(--color-border)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-sm)' }}>
+                <span style={{ fontWeight: 800, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                  {t.history || 'Calculation History'}
+                </span>
+                {history?.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearHistory}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      color: 'var(--color-danger)',
+                      fontSize: 'var(--font-size-xs)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    <Trash2 size={12} />
+                    <span>{t.clearHistory || 'Clear'}</span>
+                  </button>
+                )}
+              </div>
+
+              {history?.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {history.map((item) => (
+                    <div
+                      key={item.id}
+                      onClick={() => {
+                        restoreHistoryItem(item);
+                        setShowHistory(false);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '6px 10px',
+                        background: 'var(--color-bg)',
+                        borderRadius: 'var(--radius-md)',
+                        cursor: 'pointer',
+                        transition: 'background var(--transition-fast)',
+                      }}
+                    >
+                      <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                        {item.expression} =
+                      </span>
+                      <span style={{ fontSize: 'var(--font-size-sm)', fontWeight: 800, color: 'var(--color-primary)' }}>
+                        {Number(item.result).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: 'var(--space-md)', color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-xs)' }}>
+                  {t.noHistoryYet || 'No calculations yet'}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Display */}
           <div className="calc-display">
             <div className="calc-expression">{expression}</div>

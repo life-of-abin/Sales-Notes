@@ -1,9 +1,11 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { BusinessProvider } from './context/BusinessContext';
+import { CalculatorProvider } from './context/CalculatorContext';
 import { useBusiness } from './hooks/useBusiness';
 import BottomNav from './components/layout/BottomNav';
 import ToastContainer from './components/ui/Toast';
 import InstallPrompt from './components/ui/InstallPrompt';
+import FloatingCalculator from './components/ui/FloatingCalculator';
 import Onboarding from './pages/Onboarding';
 import Home from './pages/Home';
 import Stock from './pages/Stock';
@@ -38,6 +40,7 @@ function AppContent() {
     <div className="app-layout">
       <InstallPrompt />
       <ToastContainer />
+      <FloatingCalculator />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/onboarding" element={<Onboarding />} />
@@ -61,7 +64,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <BusinessProvider>
-        <AppContent />
+        <CalculatorProvider>
+          <AppContent />
+        </CalculatorProvider>
       </BusinessProvider>
     </BrowserRouter>
   );

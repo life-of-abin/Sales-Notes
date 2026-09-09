@@ -106,6 +106,12 @@ const en = {
   profitPerPiece: 'Profit per piece',
   totalBuyCalc: 'Total Buy',
   totalSellCalc: 'Total Sell',
+  minimize: 'Minimize',
+  history: 'History',
+  clearHistory: 'Clear History',
+  noHistoryYet: 'No calculations yet',
+  openCalculator: 'Open Calculator',
+  calcRestored: 'Previous calculation restored',
 
   // Reports
   batchProfit: 'Batch Profit',
