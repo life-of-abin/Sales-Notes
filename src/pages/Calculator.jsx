@@ -72,6 +72,14 @@ export default function Calculator() {
     { label: '=', action: handleEquals, type: 'action' },
   ];
 
+  const handleClearBusiness = () => {
+    setBuyPrice('');
+    setSellPrice('');
+    setQty('1');
+  };
+
+  const hasBizValues = Boolean(buyPrice || sellPrice || (qty && qty !== '1'));
+
   const headerRight = (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
       {mode === 'standard' && (
@@ -92,6 +100,32 @@ export default function Calculator() {
           <span>{history?.length || 0}</span>
         </button>
       )}
+
+      {mode === 'business' && (
+        <button
+          type="button"
+          onClick={handleClearBusiness}
+          className="privacy-btn"
+          disabled={!hasBizValues}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            padding: '6px 10px',
+            fontSize: 'var(--font-size-xs)',
+            fontWeight: 700,
+            color: hasBizValues ? 'var(--color-danger, #EF4444)' : 'var(--color-text-tertiary)',
+            opacity: hasBizValues ? 1 : 0.45,
+            cursor: hasBizValues ? 'pointer' : 'default',
+          }}
+          title={t.clear || 'Clear'}
+          id="btn-clear-biz-calc"
+        >
+          <Trash2 size={14} />
+          <span>{t.clear || 'Clear'}</span>
+        </button>
+      )}
+
       <button
         type="button"
         onClick={handleMinimize}

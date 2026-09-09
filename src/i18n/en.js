@@ -128,6 +128,7 @@ const en = {
   fullScreen: 'Full',
   history: 'History',
   clearHistory: 'Clear History',
+  clear: 'Clear',
   noHistoryYet: 'No calculations yet',
   openCalculator: 'Open Calculator',
   calcRestored: 'Previous calculation restored',
