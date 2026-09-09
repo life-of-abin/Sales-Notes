@@ -6,6 +6,7 @@ import { formatDate, formatTime } from '../utils/formatDate';
 import { formatProductDisplayName } from '../utils/transliterate';
 import StatCard from '../components/ui/StatCard';
 import ActionButton from '../components/ui/ActionButton';
+import MagicQrModal from '../components/MagicQrModal';
 import {
   BadgeIndianRupee,
   TrendingUp,
@@ -44,6 +45,7 @@ export default function Home() {
     return saved === null ? true : saved === 'true';
   });
   const [showLangMenu, setShowLangMenu] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
 
   const togglePrivacy = () => {
     setPrivacyMode((prev) => {
@@ -75,15 +77,35 @@ export default function Home() {
 
   return (
     <div className="page-content">
+      {/* Magic QR Code Modal (Hidden Feature) */}
+      <MagicQrModal
+        isOpen={showQrModal}
+        onClose={() => setShowQrModal(false)}
+        language={language}
+        t={t}
+      />
+
       {/* Greeting & Header Action Buttons */}
       <div className="greeting">
-        <div className="greeting-brand">
-          <img src="/logo.png" alt="My Dukaan" className="greeting-logo" />
+        <div
+          className="greeting-brand"
+          onClick={() => setShowQrModal(true)}
+          style={{ cursor: 'pointer' }}
+          title={language === 'ta' ? 'மேஜிக் QR வாலட் (தட்டவும்)' : 'Magic QR Vault (Tap to open)'}
+          id="btn-app-logo-magic"
+        >
+          <img
+            src="/logo.png"
+            alt="My Dukaan"
+            className="greeting-logo"
+            id="app-icon-magic-qr"
+          />
           <div className="greeting-content">
             <div className="greeting-text">{t.greeting}</div>
             <div className="greeting-sub">{language === 'ta' ? 'இன்றைய வியாபார சுருக்கம்' : "Today's business summary"}</div>
           </div>
         </div>
+
 
         <div className="greeting-actions">
           {/* Language Selector in front of Visible/Privacy Button */}
