@@ -8,6 +8,7 @@ import { getBatchStatus, calculateRealizedProfit, calculateExpectedProfit } from
 import PageHeader from '../components/layout/PageHeader';
 import EmptyState from '../components/ui/EmptyState';
 import Modal from '../components/ui/Modal';
+import { CheckCircle2 } from 'lucide-react';
 import db from '../db/database';
 
 export default function Purchases() {
@@ -128,12 +129,33 @@ export default function Purchases() {
             {/* Items in batch */}
             {batchLots.map((lot) => {
               const isMultiItem = batchLots.length > 1;
+              const isSoldOut = lot.remainingQty === 0;
               const lotProfit = lot.realizedProfit ?? ((lot.sellingPrice - lot.purchasePrice) * (lot.quantity - lot.remainingQty));
 
               return (
                 <div key={lot.id} className="card" style={{ marginBottom: 'var(--space-sm)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                    <span style={{ fontWeight: 600 }}>{formatProductDisplayName(lot.productName, language)}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontWeight: 600 }}>{formatProductDisplayName(lot.productName, language)}</span>
+                      {isSoldOut && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          padding: '2px 7px',
+                          borderRadius: '12px',
+                          background: '#22C55E18',
+                          color: '#16A34A',
+                          border: '1px solid #22C55E40',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          lineHeight: 1,
+                        }}>
+                          <CheckCircle2 size={11} strokeWidth={2.5} />
+                          {t.soldOutTag || 'Sold Out'}
+                        </span>
+                      )}
+                    </div>
                     <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
                       {lot.quantity} {t.pieces}
                     </span>

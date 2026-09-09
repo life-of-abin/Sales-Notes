@@ -8,7 +8,8 @@ import { formatProductDisplayName, formatCustomerDisplayName, toTamilName } from
 import PageHeader from '../components/layout/PageHeader';
 import QuantitySelector from '../components/ui/QuantitySelector';
 import CurrencyInput from '../components/ui/CurrencyInput';
-import { AlertTriangle } from 'lucide-react';
+import Modal from '../components/ui/Modal';
+import { AlertTriangle, ShieldAlert } from 'lucide-react';
 
 export default function NewSale() {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ export default function NewSale() {
   const [paidAmount, setPaidAmount] = useState('');
   const [saving, setSaving] = useState(false);
   const [belowCost, setBelowCost] = useState(false);
-  const [showBelowCostConfirm, setShowBelowCostConfirm] = useState(false);
+  const [showLossModal, setShowLossModal] = useState(false);
 
   const activeProducts = productSummaries.filter((p) => p.totalQty > 0);
 
@@ -56,18 +57,22 @@ export default function NewSale() {
   const finalPrice = (Number(sellingPrice) || 0) - (Number(discount) || 0);
   const totalAmount = quantity * finalPrice;
   const maxQty = selectedProduct?.totalQty || 0;
+  const purchaseCost = lots.length > 0 ? lots[0].purchasePrice : 0;
+  const maxDiscount = Math.max(0, (Number(sellingPrice) || 0) - purchaseCost);
 
   // Check below cost
   useEffect(() => {
     if (lots.length > 0 && finalPrice > 0) {
       const firstLotCost = lots[0].purchasePrice;
       setBelowCost(finalPrice < firstLotCost);
+    } else {
+      setBelowCost(false);
     }
   }, [finalPrice, lots]);
 
   const handleSale = async () => {
-    if (belowCost && !showBelowCostConfirm) {
-      setShowBelowCostConfirm(true);
+    if (belowCost) {
+      setShowLossModal(true);
       return;
     }
 
@@ -203,15 +208,35 @@ export default function NewSale() {
             <span className="summary-row-value">{formatCurrency(finalPrice)}</span>
           </div>
         )}
-      </div>
 
-      {/* Below cost warning */}
-      {belowCost && (
-        <div className="warning-banner">
-          <AlertTriangle size={18} />
-          {t.belowCostWarning}
-        </div>
-      )}
+        {/* Below cost warning banner */}
+        {belowCost && (
+          <div
+            className="warning-banner animate-pop"
+            style={{
+              marginTop: 'var(--space-md)',
+              background: '#FEF2F2',
+              border: '1.5px solid #F87171',
+              color: '#991B1B',
+              borderRadius: 'var(--radius-lg)',
+              padding: '12px 14px',
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '10px',
+            }}
+          >
+            <ShieldAlert size={20} color="#DC2626" style={{ flexShrink: 0, marginTop: 1 }} />
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 'var(--font-size-sm)', color: '#DC2626' }}>
+                {(t.belowCostError || 'Selling at a loss is not allowed! Purchase cost is {cost}').replace('{cost}', formatCurrency(purchaseCost))}
+              </div>
+              <div style={{ fontSize: 'var(--font-size-xs)', marginTop: 4, color: '#991B1B', fontWeight: 600 }}>
+                {(t.maxDiscountAllowed || 'Max allowed discount: {maxDiscount}').replace('{maxDiscount}', formatCurrency(maxDiscount))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Customer credit */}
       {!showCustomer ? (
@@ -274,35 +299,46 @@ export default function NewSale() {
         </div>
       )}
 
-      {/* Below cost confirmation */}
-      {showBelowCostConfirm && (
-        <div className="warning-banner" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 'var(--space-md)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-            <AlertTriangle size={18} />
-            {t.sellingBelowPurchasePrice}
-          </div>
-          <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
-            <button className="btn btn--ghost btn--sm" onClick={() => setShowBelowCostConfirm(false)} style={{ flex: 1 }}>
-              {t.cancel}
-            </button>
-            <button className="btn btn--primary btn--sm" onClick={handleSale} style={{ flex: 1 }}>
-              {t.confirm}
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Confirm Sale Button */}
+      <button
+        className={`btn ${belowCost ? 'btn--danger' : 'btn--success'} btn--lg`}
+        onClick={handleSale}
+        disabled={saving || quantity > maxQty || finalPrice <= 0 || belowCost}
+        id="btn-confirm-sale"
+        style={belowCost ? { opacity: 0.65, cursor: 'not-allowed' } : {}}
+      >
+        {saving
+          ? t.recording
+          : belowCost
+          ? `🛑 ${t.cannotSellInLoss || 'Cannot Sell at a Loss'}`
+          : t.confirmSale}
+      </button>
 
-      {/* Confirm Sale */}
-      {!showBelowCostConfirm && (
-        <button
-          className="btn btn--success btn--lg"
-          onClick={handleSale}
-          disabled={saving || quantity > maxQty || finalPrice <= 0}
-          id="btn-confirm-sale"
-        >
-          {saving ? t.recording : t.confirmSale}
-        </button>
-      )}
+      {/* Loss Prevention Modal Popup */}
+      <Modal
+        isOpen={showLossModal}
+        onClose={() => setShowLossModal(false)}
+        title={`🛑 ${t.lossNotAllowedTitle || 'Selling at a Loss Not Allowed'}`}
+      >
+        <div style={{ textAlign: 'center', padding: 'var(--space-sm) 0' }}>
+          <div style={{ fontSize: 48, marginBottom: 'var(--space-md)' }}>🛑</div>
+          <div style={{ fontSize: 'var(--font-size-md)', fontWeight: 800, color: 'var(--color-danger)', marginBottom: 'var(--space-sm)' }}>
+            {t.lossNotAllowedTitle || 'Selling in Loss Not Allowed'}
+          </div>
+          <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', lineHeight: 1.6, marginBottom: 'var(--space-xl)' }}>
+            {(t.lossNotAllowedDesc || 'Discount is too high! The final selling price ({finalPrice}) is lower than the wholesale purchase cost ({costPrice}). Selling in loss is not permitted.')
+              .replace('{finalPrice}', formatCurrency(finalPrice))
+              .replace('{costPrice}', formatCurrency(purchaseCost))}
+          </div>
+          <button
+            className="btn btn--primary"
+            onClick={() => setShowLossModal(false)}
+            style={{ width: '100%' }}
+          >
+            {t.confirm || 'OK'}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

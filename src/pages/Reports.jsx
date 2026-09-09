@@ -1,11 +1,14 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useBusiness } from '../hooks/useBusiness';
 import { formatCurrency } from '../utils/formatCurrency';
 import { formatProductDisplayName } from '../utils/transliterate';
 import { getBatchProfitData, getPeriodicSummary, getProductPerformance } from '../services/reportService';
+import { exportReportToExcel } from '../utils/exportExcel';
 import PageHeader from '../components/layout/PageHeader';
 import Modal from '../components/ui/Modal';
 import EmptyState from '../components/ui/EmptyState';
+import { FileSpreadsheet } from 'lucide-react';
+import db from '../db/database';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
   Cell, Tooltip, Legend
@@ -206,13 +209,14 @@ function buildInsights(summary, topProducts, batchData, language = 'en') {
 }
 
 export default function Reports() {
-  const { batches, sales, expenses, products, language, t } = useBusiness();
+  const { batches, sales, saleItems, expenses, products, customers, language, showToast, t } = useBusiness();
   const [timeframe, setTimeframe] = useState('month');
   const [batchData, setBatchData] = useState([]);
   const [summary, setSummary] = useState(null);
   const [topProducts, setTopProducts] = useState([]);
   const [selectedBar, setSelectedBar] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   const tabs = useMemo(() => [
     { key: 'today', label: t.today || 'Today' },
@@ -249,14 +253,15 @@ export default function Reports() {
     const now = new Date();
     const cutoff = new Date(now);
     if (timeframe === 'today') { cutoff.setHours(0,0,0,0); }
-    else if (timeframe === 'week') { cutoff.setDate(now.getDate() - 6); }
+    else if (timeframe === 'week') { cutoff.setDate(now.getDate() - 6); cutoff.setHours(0,0,0,0); }
     else if (timeframe === 'month') { cutoff.setDate(1); cutoff.setHours(0,0,0,0); }
     else if (timeframe === 'year') { cutoff.setMonth(0,1); cutoff.setHours(0,0,0,0); }
     else { cutoff.setFullYear(2000); }
 
     const filtered = sales.filter(s => new Date(s.date) >= cutoff);
+    const sortedSales = [...filtered].sort((a, b) => new Date(a.date) - new Date(b.date));
     const grouped = {};
-    filtered.forEach(s => {
+    sortedSales.forEach(s => {
       const d = new Date(s.date);
       let key;
       if (timeframe === 'today') key = d.toLocaleTimeString('en-IN', { hour: '2-digit', hour12: true });
@@ -266,17 +271,87 @@ export default function Reports() {
       grouped[key].sales += Number(s.totalAmount) || 0;
       grouped[key].profit += Number(s.totalProfit) || 0;
     });
-    return Object.values(grouped).slice(-10);
+    return Object.values(grouped);
   }, [sales, timeframe]);
 
   const insights = useMemo(() => buildInsights(summary, topProducts, batchData, language), [summary, topProducts, batchData, language]);
+
+  // Auto-scroll charts to the latest (right-most) item on data update
+  const salesScrollRef = useRef(null);
+  const batchScrollRef = useRef(null);
+
+  useEffect(() => {
+    if (salesScrollRef.current) {
+      salesScrollRef.current.scrollLeft = salesScrollRef.current.scrollWidth;
+    }
+  }, [salesProfitData]);
+
+  useEffect(() => {
+    if (batchScrollRef.current) {
+      batchScrollRef.current.scrollLeft = batchScrollRef.current.scrollWidth;
+    }
+  }, [batchData]);
+
+  const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const allLots = await db.inventoryLots.toArray();
+      const currentTab = tabs.find(tb => tb.key === timeframe);
+      await exportReportToExcel({
+        timeframe,
+        timeframeLabel: currentTab ? currentTab.label : timeframe,
+        summary: summary || {},
+        sales,
+        saleItems: saleItems || [],
+        products,
+        customers: customers || [],
+        expenses,
+        inventoryLots: allLots,
+        language,
+        t,
+      });
+      showToast(t.exportSuccess || 'Excel report downloaded successfully!');
+    } catch (err) {
+      console.error('Export error:', err);
+      showToast('Export failed. Please try again.', 'error');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportButton = (
+    <button
+      type="button"
+      onClick={handleExport}
+      disabled={exporting}
+      className="privacy-btn"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        padding: '6px 12px',
+        borderRadius: 'var(--radius-full)',
+        fontSize: 'var(--font-size-xs)',
+        fontWeight: 700,
+        background: 'rgba(34, 197, 94, 0.12)',
+        color: '#16A34A',
+        border: '1.5px solid rgba(34, 197, 94, 0.35)',
+        cursor: exporting ? 'not-allowed' : 'pointer',
+      }}
+      title={t.exportExcel || 'Export to Excel'}
+    >
+      <FileSpreadsheet size={15} />
+      <span>{exporting ? (t.exporting || 'Exporting...') : (t.exportExcel || 'Excel')}</span>
+    </button>
+  );
 
   const hasAnyData = batches.length > 0 || sales.length > 0 || expenses.length > 0;
 
   if (!loading && !hasAnyData) {
     return (
       <div className="page-content">
-        <PageHeader title={t.reports} />
+        <PageHeader title={t.reports} rightAction={exportButton} />
         <EmptyState emoji="📊" title={t.noDataYet} description={t.startReportsDesc} />
       </div>
     );
@@ -286,7 +361,7 @@ export default function Reports() {
 
   return (
     <div className="page-content">
-      <PageHeader title={t.reports} />
+      <PageHeader title={t.reports} rightAction={exportButton} />
 
       {/* ── Timeframe Tabs ── */}
       <div style={{
@@ -356,19 +431,40 @@ export default function Reports() {
             <ChartCard>
               {salesProfitData.length > 0 ? (
                 <>
-                  <div style={{ width: '100%', height: 220 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={salesProfitData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }} barGap={3}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                        <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} axisLine={false} tickLine={false} tickFormatter={fmtK} width={42} />
-                        <Tooltip content={<ChartTooltip />} />
-                        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-                        <Bar dataKey="sales" name={t.salesLabel || 'Sales'} fill={C.sales} radius={[5,5,0,0]} maxBarSize={32} />
-                        <Bar dataKey="profit" name={t.profitLabel || 'Profit'} fill={C.profit} radius={[5,5,0,0]} maxBarSize={32} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                  <div
+                    ref={salesScrollRef}
+                    style={{
+                      width: '100%',
+                      overflowX: 'auto',
+                      overflowY: 'hidden',
+                      scrollbarWidth: 'thin',
+                      WebkitOverflowScrolling: 'touch',
+                      paddingBottom: 4,
+                    }}
+                  >
+                    <div style={{
+                      width: salesProfitData.length > 6 ? `${Math.max(340, salesProfitData.length * 56)}px` : '100%',
+                      minWidth: '100%',
+                      height: 220,
+                    }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={salesProfitData} margin={{ top: 8, right: 12, left: -10, bottom: 0 }} barGap={3}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                          <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} axisLine={false} tickLine={false} interval={0} />
+                          <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} axisLine={false} tickLine={false} tickFormatter={fmtK} width={42} />
+                          <Tooltip content={<ChartTooltip />} />
+                          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                          <Bar dataKey="sales" name={t.salesLabel || 'Sales'} fill={C.sales} radius={[5,5,0,0]} maxBarSize={28} />
+                          <Bar dataKey="profit" name={t.profitLabel || 'Profit'} fill={C.profit} radius={[5,5,0,0]} maxBarSize={28} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
+                  {salesProfitData.length > 6 && (
+                    <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', textAlign: 'right', marginTop: 4, paddingRight: 4 }}>
+                      👉 {language === 'ta' ? 'அனைத்து விவரங்களையும் பார்க்க நகர்த்தவும்' : 'Scroll horizontally to view all'}
+                    </div>
+                  )}
                   <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--color-surface-2)', borderRadius: 10, fontSize: 12, color: 'var(--color-text-secondary)' }}>
                     💡 {t.salesProfitLegendHint || 'Purple = total collected | Green = your actual profit'}
                   </div>
@@ -390,25 +486,46 @@ export default function Reports() {
             <ChartCard>
               {batchData.length > 0 ? (
                 <>
-                  <div style={{ width: '100%', height: 200 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={batchData.slice(-8)}
-                        onClick={(d) => d?.activePayload?.length && setSelectedBar(d.activePayload[0].payload)}
-                        margin={{ top: 8, right: 8, left: -8, bottom: 0 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                        <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} axisLine={false} tickLine={false} tickFormatter={fmtK} width={42} />
-                        <Tooltip content={<ChartTooltip />} />
-                        <Bar dataKey="realizedProfit" name={t.profitLabel || 'Profit'} radius={[6,6,0,0]} cursor="pointer" maxBarSize={36}>
-                          {batchData.slice(-8).map((entry, index) => (
-                            <Cell key={index} fill={entry.status === 'completed' ? C.completed : C.batch} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
+                  <div
+                    ref={batchScrollRef}
+                    style={{
+                      width: '100%',
+                      overflowX: 'auto',
+                      overflowY: 'hidden',
+                      scrollbarWidth: 'thin',
+                      WebkitOverflowScrolling: 'touch',
+                      paddingBottom: 4,
+                    }}
+                  >
+                    <div style={{
+                      width: batchData.length > 5 ? `${Math.max(340, batchData.length * 64)}px` : '100%',
+                      minWidth: '100%',
+                      height: 200,
+                    }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={batchData}
+                          onClick={(d) => d?.activePayload?.length && setSelectedBar(d.activePayload[0].payload)}
+                          margin={{ top: 8, right: 12, left: -10, bottom: 0 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                          <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} axisLine={false} tickLine={false} interval={0} />
+                          <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} axisLine={false} tickLine={false} tickFormatter={fmtK} width={42} />
+                          <Tooltip content={<ChartTooltip />} />
+                          <Bar dataKey="realizedProfit" name={t.profitLabel || 'Profit'} radius={[6,6,0,0]} cursor="pointer" maxBarSize={32}>
+                            {batchData.map((entry, index) => (
+                              <Cell key={index} fill={entry.status === 'completed' ? C.completed : C.batch} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
+                  {batchData.length > 5 && (
+                    <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', textAlign: 'right', marginTop: 4, paddingRight: 4 }}>
+                      👉 {language === 'ta' ? 'அனைத்து தொகுதிகளையும் பார்க்க நகர்த்தவும்' : 'Scroll horizontally to view all'}
+                    </div>
+                  )}
                   <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 10 }}>
                     {[
                       { color: C.completed, label: `✅ ${t.batchSoldOut || 'Batch Sold Out'}` },

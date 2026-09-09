@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const CACHE_NAME = `sales-notes-${CACHE_VERSION}`;
 
 // Pre-cache these on install for instant first load
@@ -8,8 +8,10 @@ const PRECACHE_ASSETS = [
   '/manifest.json',
   '/logo.png',
   '/favicon.svg',
-  '/icon-512.jpg',
-  '/icon-maskable-512.jpg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/icon-maskable-192.png',
+  '/icon-maskable-512.png',
 ];
 
 // ── INSTALL: pre-cache all critical assets immediately ──
