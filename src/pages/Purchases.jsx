@@ -269,6 +269,12 @@ export default function Purchases() {
               <span className="summary-row-label">{t.totalInvestment}</span>
               <span className="summary-row-value">{formatCurrency(selectedBatchMetrics.totalInvestment)}</span>
             </div>
+            {selectedBatchMetrics.totalRevenue > 0 && (
+              <div className="summary-row">
+                <span className="summary-row-label">{t.salesTotal || t.revenue}</span>
+                <span className="summary-row-value">{formatCurrency(selectedBatchMetrics.totalRevenue)}</span>
+              </div>
+            )}
             <div className="summary-row">
               <span className="summary-row-label">{t.realizedProfit}</span>
               <span className={`summary-row-value ${selectedBatchMetrics.realizedProfit >= 0 ? 'profit' : 'loss'}`}>
@@ -285,13 +291,25 @@ export default function Purchases() {
                 </span>
               </div>
             )}
-            {selectedBatchMetrics.status !== 'completed' && (
-              <div className="summary-row">
-                <span className="summary-row-label">{t.expectedReturn || 'Expected Return'}</span>
-                <span className="summary-row-value" style={{ color: 'var(--color-text-secondary)', fontWeight: 700 }}>
-                  {formatCurrency(selectedBatchMetrics.totalExpectedReturn)}
-                </span>
-              </div>
+            {selectedBatchMetrics.totalRemainingQty > 0 && (
+              <>
+                <div className="summary-row">
+                  <span className="summary-row-label">{t.remainingStock || 'Remaining Stock'}</span>
+                  <span className="summary-row-value">{selectedBatchMetrics.totalRemainingQty} {t.pieces}</span>
+                </div>
+                <div className="summary-row">
+                  <span className="summary-row-label">{t.stockInvestment || 'Stock Investment'}</span>
+                  <span className="summary-row-value" style={{ color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                    {formatCurrency(selectedBatchMetrics.remainingInvestment)}
+                  </span>
+                </div>
+                <div className="summary-row">
+                  <span className="summary-row-label">{t.expectedReturn || 'Expected Return'}</span>
+                  <span className="summary-row-value" style={{ color: 'var(--color-text-secondary)', fontWeight: 700 }}>
+                    {formatCurrency(selectedBatchMetrics.totalExpectedReturn)}
+                  </span>
+                </div>
+              </>
             )}
           </>
         )}

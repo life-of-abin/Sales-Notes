@@ -5,11 +5,11 @@ import { getProductStock } from '../services/inventoryService';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getProductEmoji, getProductColor } from '../utils/constants';
 import { formatProductDisplayName, formatCustomerDisplayName, toTamilName } from '../utils/transliterate';
+import { calculateSaleTransaction } from '../services/calculationService';
 import PageHeader from '../components/layout/PageHeader';
 import QuantitySelector from '../components/ui/QuantitySelector';
 import CurrencyInput from '../components/ui/CurrencyInput';
-import Modal from '../components/ui/Modal';
-import { AlertTriangle, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, AlertCircle } from 'lucide-react';
 
 export default function NewSale() {
   const navigate = useNavigate();
@@ -28,7 +28,6 @@ export default function NewSale() {
   const [customerName, setCustomerName] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
   const [saving, setSaving] = useState(false);
-  const [showLossModal, setShowLossModal] = useState(false);
 
   const activeProducts = productSummaries.filter((p) => p.totalQty > 0);
 
@@ -59,29 +58,31 @@ export default function NewSale() {
   const handleSelectLot = (lot) => {
     setSelectedLotId(lot.id);
     setSellingPrice(String(lot.sellingPrice));
+    setDiscount('');
     setQuantity((prev) => Math.min(prev, lot.remainingQty) || 1);
   };
 
   const activeLot = lots.find((l) => l.id === selectedLotId) || (lots.length > 0 ? lots[0] : null);
-  const numSellingPrice = Number(sellingPrice) || 0;
-  const numDiscount = Number(discount) || 0;
-  const finalPrice = numSellingPrice - numDiscount;
-  const totalAmount = quantity * finalPrice;
   const maxQty = activeLot ? activeLot.remainingQty : (selectedProduct?.totalQty || 0);
+  const predefinedPrice = activeLot ? Number(activeLot.sellingPrice) || 0 : 0;
   const purchaseCost = activeLot ? Number(activeLot.purchasePrice) || 0 : 0;
-  const maxDiscount = Math.max(0, numSellingPrice - purchaseCost);
 
-  // Synchronous instant over-discount & loss detection
-  const isOverDiscount = numSellingPrice > 0 && numDiscount > maxDiscount;
-  const isBelowCost = numSellingPrice > 0 && (finalPrice < purchaseCost || isOverDiscount || finalPrice <= 0);
+  const enteredPrice = Number(sellingPrice) || 0;
+  const enteredDiscount = Number(discount) || 0;
+  const actualSalePrice = Math.max(0, enteredPrice - enteredDiscount);
+
+  // Authoritative real-time calculation
+  const tx = calculateSaleTransaction({
+    quantity,
+    costPerUnitAtSale: purchaseCost,
+    predefinedSellPriceAtSale: predefinedPrice,
+    actualSalePrice,
+  });
+
+  const totalAmount = tx.revenue;
 
   const handleSale = async () => {
-    if (isBelowCost || isOverDiscount || finalPrice <= 0) {
-      setShowLossModal(true);
-      return;
-    }
-
-    if (saving) return;
+    if (saving || quantity > maxQty || quantity <= 0 || actualSalePrice <= 0) return;
     setSaving(true);
 
     try {
@@ -89,7 +90,6 @@ export default function NewSale() {
       let paid = null;
 
       if (showCustomer && customerName.trim()) {
-        // Find or create customer
         const trimmedName = customerName.trim();
         const finalName = language === 'ta' ? toTamilName(trimmedName) : trimmedName;
         const existing = customers.find(
@@ -106,8 +106,8 @@ export default function NewSale() {
       await recordSale(
         selectedProduct.id,
         quantity,
-        numSellingPrice,
-        numDiscount,
+        actualSalePrice,
+        tx.discountPerUnit,
         customerId,
         paid,
         activeLot?.id || null
@@ -280,7 +280,7 @@ export default function NewSale() {
         )}
       </div>
 
-      {/* Price */}
+      {/* Price Inputs */}
       <div className="card" style={{ marginBottom: 'var(--space-lg)' }}>
         <CurrencyInput
           label={t.sellingPrice}
@@ -295,21 +295,43 @@ export default function NewSale() {
           id="input-discount"
         />
 
-        {numSellingPrice > 0 && !isBelowCost && maxDiscount > 0 && (
-          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: 6, fontWeight: 600 }}>
-            <span>{(t.maxDiscountAllowed || 'Maximum discount: upto {maxDiscount}').replace('{maxDiscount}', formatCurrency(maxDiscount))}</span>
+        {/* Live Accounting Summary */}
+        {actualSalePrice > 0 && (
+          <div style={{ marginTop: 'var(--space-md)', paddingTop: 'var(--space-sm)', borderTop: '1px solid var(--color-border)' }}>
+            <div className="summary-row" style={{ fontSize: 'var(--font-size-xs)', marginBottom: 4 }}>
+              <span className="summary-row-label">{t.costPriceLabel || 'Cost Price'}:</span>
+              <span className="summary-row-value">{formatCurrency(purchaseCost)}</span>
+            </div>
+            <div className="summary-row" style={{ fontSize: 'var(--font-size-xs)', marginBottom: 4 }}>
+              <span className="summary-row-label">{t.predefinedPrice || 'Predefined Price'}:</span>
+              <span className="summary-row-value">{formatCurrency(predefinedPrice)}</span>
+            </div>
+            {tx.totalDiscount > 0 && (
+              <div className="summary-row" style={{ fontSize: 'var(--font-size-xs)', marginBottom: 4 }}>
+                <span className="summary-row-label">{t.discount}:</span>
+                <span className="summary-row-value" style={{ color: '#EF4444', fontWeight: 700 }}>
+                  -{formatCurrency(tx.totalDiscount)}
+                </span>
+              </div>
+            )}
+            <div className="summary-row" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, marginTop: 6, paddingTop: 6, borderTop: '1px dashed var(--color-border)' }}>
+              <span className="summary-row-label">{t.finalPrice || t.actualSalePrice}:</span>
+              <span className="summary-row-value">{formatCurrency(actualSalePrice)} / {t.piece || 'pc'}</span>
+            </div>
+            <div className="summary-row" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, marginTop: 4 }}>
+              <span className="summary-row-label">{t.profitEarned || t.realizedProfit}:</span>
+              <span
+                className="summary-row-value"
+                style={{ color: tx.realizedProfit >= 0 ? 'var(--color-success, #16A34A)' : 'var(--color-danger, #DC2626)' }}
+              >
+                {tx.realizedProfit >= 0 ? '+' : ''}{formatCurrency(tx.realizedProfit)}
+              </span>
+            </div>
           </div>
         )}
 
-        {finalPrice > 0 && !isBelowCost && (
-          <div className="summary-row" style={{ marginTop: 'var(--space-sm)' }}>
-            <span className="summary-row-label">{t.finalPrice}</span>
-            <span className="summary-row-value">{formatCurrency(finalPrice)}</span>
-          </div>
-        )}
-
-        {/* Below cost / Over discount warning banner */}
-        {isBelowCost && (
+        {/* Below Cost Warning Banner (Live Non-blocking) */}
+        {tx.isLoss && (
           <div
             className="warning-banner animate-pop"
             style={{
@@ -324,10 +346,12 @@ export default function NewSale() {
               gap: '10px',
             }}
           >
-            <ShieldAlert size={22} color="#DC2626" style={{ flexShrink: 0 }} />
+            <AlertTriangle size={22} color="#DC2626" style={{ flexShrink: 0 }} />
             <div>
               <div style={{ fontWeight: 800, fontSize: 'var(--font-size-sm)', color: '#DC2626', lineHeight: 1.4 }}>
-                {(t.belowCostError || 'Discount is too high! Maximum discount allowed is upto {maxDiscount}').replace('{maxDiscount}', formatCurrency(maxDiscount))}
+                {(t.sellingBelowCostWarning || '⚠️ Selling below cost price ({cost}). Loss: ₹{loss}')
+                  .replace('{cost}', formatCurrency(purchaseCost))
+                  .replace('{loss}', formatCurrency(tx.totalLoss))}
               </div>
             </div>
           </div>
@@ -383,9 +407,9 @@ export default function NewSale() {
         </div>
       )}
 
-      {/* Total */}
-      {totalAmount > 0 && !isBelowCost && (
-        <div className="card" style={{ marginBottom: 'var(--space-xl)', background: 'var(--color-success-bg)' }}>
+      {/* Total Card */}
+      {totalAmount > 0 && (
+        <div className="card" style={{ marginBottom: 'var(--space-xl)', background: tx.isLoss ? 'rgba(239, 68, 68, 0.08)' : 'var(--color-success-bg)' }}>
           <div className="summary-row">
             <span className="summary-row-label" style={{ fontWeight: 600 }}>{t.total}</span>
             <span className="summary-row-value" style={{ fontSize: 'var(--font-size-2xl)' }}>
@@ -397,43 +421,17 @@ export default function NewSale() {
 
       {/* Confirm Sale Button */}
       <button
-        className={`btn ${isBelowCost ? 'btn--danger' : 'btn--success'} btn--lg`}
+        className={`btn ${tx.isLoss ? 'btn--warning' : 'btn--success'} btn--lg`}
         onClick={handleSale}
-        disabled={saving || quantity > maxQty || finalPrice <= 0 || isBelowCost}
+        disabled={saving || quantity > maxQty || quantity <= 0 || actualSalePrice <= 0}
         id="btn-confirm-sale"
-        style={isBelowCost ? { opacity: 0.65, cursor: 'not-allowed' } : {}}
       >
         {saving
           ? t.recording
-          : isBelowCost
-          ? `🛑 ${t.cannotSellInLoss || 'Cannot Sell at a Loss'}`
+          : tx.isLoss
+          ? `⚠️ ${t.confirmSale} (${t.lossLabel || 'Loss'}: ₹${tx.totalLoss})`
           : t.confirmSale}
       </button>
-
-      {/* Loss Prevention Modal Popup */}
-      <Modal
-        isOpen={showLossModal}
-        onClose={() => setShowLossModal(false)}
-        title={`🛑 ${t.lossNotAllowedTitle || 'Selling at a Loss Not Allowed'}`}
-      >
-        <div style={{ textAlign: 'center', padding: 'var(--space-sm) 0' }}>
-          <div style={{ fontSize: 48, marginBottom: 'var(--space-md)' }}>🛑</div>
-          <div style={{ fontSize: 'var(--font-size-md)', fontWeight: 800, color: 'var(--color-danger)', marginBottom: 'var(--space-sm)' }}>
-            {t.lossNotAllowedTitle || 'Selling in Loss Not Allowed'}
-          </div>
-          <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', lineHeight: 1.6, marginBottom: 'var(--space-lg)' }}>
-            {(t.lossNotAllowedDesc || 'Discount is too high! Maximum discount allowed is upto {maxDiscount}. Selling at a loss is not permitted.')
-              .replace('{maxDiscount}', formatCurrency(maxDiscount))}
-          </div>
-          <button
-            className="btn btn--primary"
-            onClick={() => setShowLossModal(false)}
-            style={{ width: '100%' }}
-          >
-            {t.gotIt || t.ok || 'OK'}
-          </button>
-        </div>
-      </Modal>
     </div>
   );
 }

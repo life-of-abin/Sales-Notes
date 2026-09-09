@@ -1,7 +1,7 @@
 import { createContext, useState, useEffect, useCallback } from 'react';
 import db from '../db/database';
 import { allocateFIFO, allocateLot, getAllProductSummaries, getTotalStockValue } from '../services/inventoryService';
-import { roundCurrency, calculateProductMetrics } from '../services/calculationService';
+import { roundCurrency, calculateProductMetrics, calculateSaleTransaction } from '../services/calculationService';
 import { isToday } from '../utils/formatDate';
 import { generateId } from '../utils/generateId';
 import { formatCustomerDisplayName } from '../utils/transliterate';
@@ -160,78 +160,107 @@ export function BusinessProvider({ children }) {
 
   // ---- RECORD SALE ----
   const recordSale = useCallback(async (productId, quantity, sellingPrice, discount = 0, customerId = null, paidAmount = null, lotId = null) => {
-    const sPrice = Number(sellingPrice) || 0;
-    const disc = Number(discount) || 0;
-    const finalPrice = roundCurrency(sPrice - disc);
-    const totalAmount = roundCurrency(quantity * finalPrice);
-    const totalDiscount = roundCurrency(disc * quantity);
+    const rawActualPrice = Number(sellingPrice) || 0;
+    const rawDiscount = Number(discount) || 0;
 
     // Direct Lot or FIFO allocation
     const allocations = lotId
       ? await allocateLot(lotId, quantity)
       : await allocateFIFO(productId, quantity);
 
-    // Calculate profit using centralized calculation
-    let totalProfit = 0;
-    for (const alloc of allocations) {
-      const metrics = calculateProductMetrics({
-        purchaseQty: alloc.quantity,
-        soldQty: alloc.quantity,
-        buyPrice: alloc.purchasePrice,
-        sellPrice: sPrice,
-        discount: roundCurrency(disc * alloc.quantity),
+    let totalSaleRevenue = 0;
+    let totalSaleProfit = 0;
+    let totalSaleDiscount = 0;
+    let totalSaleCOGS = 0;
+
+    const calculatedAllocations = allocations.map((alloc) => {
+      const predefinedPrice = Number(alloc.sellingPrice) || 0;
+      const costPrice = Number(alloc.purchasePrice) || 0;
+      const actualPrice = rawActualPrice;
+      const tx = calculateSaleTransaction({
+        quantity: alloc.quantity,
+        costPerUnitAtSale: costPrice,
+        predefinedSellPriceAtSale: predefinedPrice,
+        actualSalePrice: actualPrice,
       });
-      totalProfit += metrics.realizedProfit;
-    }
-    totalProfit = roundCurrency(totalProfit);
+
+      totalSaleRevenue += tx.revenue;
+      totalSaleProfit += tx.realizedProfit;
+      totalSaleDiscount += tx.totalDiscount;
+      totalSaleCOGS += tx.costOfGoodsSold;
+
+      return {
+        ...alloc,
+        tx,
+        actualSalePrice: actualPrice,
+        predefinedSellPrice: predefinedPrice,
+      };
+    });
+
+    totalSaleRevenue = roundCurrency(totalSaleRevenue);
+    totalSaleProfit = roundCurrency(totalSaleProfit);
+    totalSaleDiscount = roundCurrency(totalSaleDiscount);
+    totalSaleCOGS = roundCurrency(totalSaleCOGS);
 
     const saleId = generateId();
     const now = new Date().toISOString();
 
     // Determine payment status
     let paymentStatus = 'paid';
-    if (customerId && paidAmount !== null && paidAmount < totalAmount) {
+    if (customerId && paidAmount !== null && paidAmount < totalSaleRevenue) {
       paymentStatus = 'partial';
     }
 
-    // Create sale
+    // Create sale record
     await db.sales.add({
       id: saleId,
       customerId: customerId || null,
       date: now,
-      totalAmount,
-      totalProfit,
-      discount: totalDiscount,
+      totalAmount: totalSaleRevenue,
+      totalProfit: totalSaleProfit,
+      discount: totalSaleDiscount,
+      costOfGoodsSold: totalSaleCOGS,
       paymentStatus,
     });
 
-    // Create sale item
+    // Create sale item record
     const saleItemId = generateId();
     await db.saleItems.add({
       id: saleItemId,
       saleId,
       productId,
       quantity,
-      sellingPrice: finalPrice,
-      discount: disc,
+      sellingPrice: rawActualPrice,
+      actualSalePrice: rawActualPrice,
+      discount: roundCurrency(totalSaleDiscount / (quantity || 1)),
+      totalDiscount: totalSaleDiscount,
+      revenue: totalSaleRevenue,
+      costOfGoodsSold: totalSaleCOGS,
+      realizedProfit: totalSaleProfit,
     });
 
-    // Create sale allocations
-    for (const alloc of allocations) {
+    // Create sale allocations records
+    for (const alloc of calculatedAllocations) {
       await db.saleAllocations.add({
         id: generateId(),
         saleItemId,
         lotId: alloc.lotId,
         quantity: alloc.quantity,
         purchasePrice: alloc.purchasePrice,
-        sellingPrice: finalPrice,
-        discount: disc,
+        predefinedSellPrice: alloc.predefinedSellPrice,
+        sellingPrice: alloc.actualSalePrice,
+        actualSalePrice: alloc.actualSalePrice,
+        discount: alloc.tx.discountPerUnit,
+        totalDiscount: alloc.tx.totalDiscount,
+        revenue: alloc.tx.revenue,
+        costOfGoodsSold: alloc.tx.costOfGoodsSold,
+        realizedProfit: alloc.tx.realizedProfit,
       });
     }
 
     // Handle customer payment
     if (customerId && paidAmount !== null) {
-      const pendingAmount = roundCurrency(totalAmount - paidAmount);
+      const pendingAmount = roundCurrency(totalSaleRevenue - paidAmount);
       if (paidAmount > 0) {
         await db.customerPayments.add({
           id: generateId(),
@@ -251,8 +280,8 @@ export function BusinessProvider({ children }) {
     }
 
     await refreshData();
-    showToast(`${t.saleRecorded} ${t.profitEarned}: ₹${totalProfit}`);
-    return { saleId, totalProfit, totalAmount };
+    showToast(`${t.saleRecorded} ${t.profitEarned}: ₹${totalSaleProfit}`);
+    return { saleId, totalProfit: totalSaleProfit, totalAmount: totalSaleRevenue };
   }, [refreshData, showToast, t]);
 
   // ---- ADD EXPENSE ----
