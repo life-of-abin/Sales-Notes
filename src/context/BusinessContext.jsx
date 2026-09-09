@@ -213,6 +213,7 @@ export function BusinessProvider({ children }) {
         quantity: alloc.quantity,
         purchasePrice: alloc.purchasePrice,
         sellingPrice: finalPrice,
+        discount: discount || 0,
       });
     }
 
