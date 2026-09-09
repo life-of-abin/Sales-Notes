@@ -31,7 +31,7 @@ const ta = {
   totalCost: 'மொத்த அடக்கம்',
   expectedSales: 'எதிர்பார்க்கும் விற்பனை',
   expectedProfit: 'எதிர்பார்க்கும் லாபம்',
-  addAnotherItem: '+ மற்றொரு வகை சேர்க்கவும்',
+  addAnotherItem: 'மற்றொரு வகை சேர்க்கவும்',
   totalInvestment: 'மொத்த முதலீடு',
   savePurchase: 'கொள்முதலை சேமிக்கவும்',
   purchaseSaved: 'கொள்முதல் வெற்றிகரமாக சேமிக்கப்பட்டது!',

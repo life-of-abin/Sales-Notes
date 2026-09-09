@@ -31,7 +31,7 @@ const en = {
   totalCost: 'Total Cost',
   expectedSales: 'Expected Sales',
   expectedProfit: 'Expected Profit',
-  addAnotherItem: '+ Add Another Item',
+  addAnotherItem: 'Add Another Item',
   totalInvestment: 'Total Investment',
   savePurchase: 'SAVE PURCHASE',
   purchaseSaved: 'Purchase saved successfully!',

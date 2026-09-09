@@ -100,13 +100,12 @@ export default function Calculator() {
           display: 'flex',
           alignItems: 'center',
           gap: '4px',
-          padding: '6px 12px',
+          padding: '6px 10px',
           fontSize: 'var(--font-size-xs)',
         }}
         title={t.minimize || 'Minimize'}
       >
         <Minimize2 size={14} />
-        <span>{t.minimize || 'Minimize'}</span>
       </button>
     </div>
   );

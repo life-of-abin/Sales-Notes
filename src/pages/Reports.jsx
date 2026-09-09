@@ -1,16 +1,158 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useBusiness } from '../hooks/useBusiness';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getBatchProfitData, getPeriodicSummary, getProductPerformance } from '../services/reportService';
 import PageHeader from '../components/layout/PageHeader';
 import Modal from '../components/ui/Modal';
 import EmptyState from '../components/ui/EmptyState';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Cell } from 'recharts';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
+  Cell, Tooltip, Legend
+} from 'recharts';
+
+/* ─── Palette ─────────────────────────────────────────── */
+const C = {
+  sales:    '#6C63FF',
+  profit:   '#22C55E',
+  expense:  '#F97316',
+  batch:    '#5B1EE6',
+  completed:'#22C55E',
+  stock:    '#0EA5E9',
+};
+
+/* ─── Custom Tooltip ─────────────────────────────────── */
+function ChartTooltip({ active, payload, label }) {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div style={{
+      background: 'var(--color-surface)',
+      border: '1px solid var(--color-border)',
+      borderRadius: 10,
+      padding: '10px 14px',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+      minWidth: 120,
+    }}>
+      <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 6, fontWeight: 600 }}>{label}</div>
+      {payload.map((p, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: p.color || p.fill }} />
+          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{p.name}:</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--color-text)' }}>
+            ₹{Number(p.value || 0).toLocaleString('en-IN')}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Stat Card ───────────────────────────────────────── */
+function StatCard({ emoji, label, value, color, sub }) {
+  return (
+    <div style={{
+      background: `linear-gradient(135deg, ${color}18, ${color}06)`,
+      border: `1.5px solid ${color}30`,
+      borderRadius: 16,
+      padding: '14px 16px',
+      flex: '1 1 calc(50% - 8px)',
+      minWidth: 0,
+    }}>
+      <div style={{ fontSize: 22, marginBottom: 4 }}>{emoji}</div>
+      <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 700, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
+      <div style={{ fontSize: 18, fontWeight: 800, color, lineHeight: 1.1 }}>{value}</div>
+      {sub && <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 3 }}>{sub}</div>}
+    </div>
+  );
+}
+
+/* ─── Insight Card ────────────────────────────────────── */
+function InsightCard({ emoji, text, color }) {
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: 10,
+      padding: '12px 14px',
+      borderRadius: 12,
+      background: `${color}12`,
+      border: `1px solid ${color}25`,
+    }}>
+      <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>{emoji}</span>
+      <span style={{ fontSize: 13, color: 'var(--color-text)', lineHeight: 1.5, fontWeight: 500 }}>{text}</span>
+    </div>
+  );
+}
+
+/* ─── Section Title ───────────────────────────────────── */
+function SectionTitle({ title, subtitle }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontWeight: 800, fontSize: 'var(--font-size-md)', color: 'var(--color-text)' }}>{title}</div>
+      {subtitle && <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 2 }}>{subtitle}</div>}
+    </div>
+  );
+}
+
+/* ─── Chart Card wrapper ──────────────────────────────── */
+function ChartCard({ children }) {
+  return (
+    <div style={{
+      background: 'var(--color-surface)',
+      borderRadius: 18,
+      padding: 'var(--space-lg) var(--space-sm)',
+      border: '1px solid var(--color-border)',
+      boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+    }}>
+      {children}
+    </div>
+  );
+}
+
+/* ─── Tips generator ──────────────────────────────────── */
+function buildInsights(summary, topProducts, batchData) {
+  if (!summary) return [];
+  const { totalSales, totalProfit, totalExpenses, netProfit, salesCount } = summary;
+  const tips = [];
+  const pm = totalSales > 0 ? ((totalProfit / totalSales) * 100).toFixed(1) : 0;
+  const er = totalSales > 0 ? ((totalExpenses / totalSales) * 100).toFixed(1) : 0;
+  const fmt = (n) => Number(n).toLocaleString('en-IN');
+
+  if (netProfit > 0) tips.push({ emoji: '🎉', text: `Great! Net profit is ₹${fmt(netProfit)} this period. Keep selling!`, color: '#22C55E' });
+  else if (netProfit < 0) tips.push({ emoji: '⚠️', text: `Expenses (₹${fmt(totalExpenses)}) are more than profit. Try to reduce costs.`, color: '#F97316' });
+
+  if (Number(pm) > 20) tips.push({ emoji: '📈', text: `Excellent ${pm}% profit margin! Your pricing is working well.`, color: '#22C55E' });
+  else if (Number(pm) > 0 && Number(pm) <= 10) tips.push({ emoji: '💡', text: `Profit margin is only ${pm}%. Try increasing your selling price a little.`, color: '#6C63FF' });
+
+  if (Number(er) > 30) tips.push({ emoji: '✂️', text: `Expenses are ${er}% of sales. Look for ways to cut costs.`, color: '#F97316' });
+
+  if ((salesCount || 0) === 0) tips.push({ emoji: '🛒', text: 'No sales yet for this period. Start selling to see your report!', color: '#9CA3AF' });
+  else if ((salesCount || 0) < 5) tips.push({ emoji: '📦', text: `Made ${salesCount} sale${salesCount > 1 ? 's' : ''} this period. Try promoting more!`, color: '#6C63FF' });
+  else tips.push({ emoji: '🔥', text: `${salesCount} sales this period — great activity!`, color: '#F97316' });
+
+  if (topProducts.length > 0) tips.push({ emoji: '⭐', text: `"${topProducts[0].name}" is your best seller (${topProducts[0].totalQty} sold). Keep it stocked!`, color: '#0EA5E9' });
+
+  const done = batchData.filter(b => b.status === 'completed');
+  if (done.length > 0) {
+    const avg = done.reduce((s, b) => s + b.realizedProfit, 0) / done.length;
+    tips.push({ emoji: '💰', text: `Average profit per completed batch: ₹${Math.round(avg).toLocaleString('en-IN')}.`, color: '#5B1EE6' });
+  }
+  if (summary.stockValue > 0) tips.push({ emoji: '🏪', text: `₹${fmt(summary.stockValue)} worth of stock ready to sell. Push it out!`, color: '#0EA5E9' });
+
+  return tips.slice(0, 4);
+}
+
+const TABS = [
+  { key: 'today', label: 'Today' },
+  { key: 'week',  label: 'Week' },
+  { key: 'month', label: 'Month' },
+  { key: 'year',  label: 'Yearly' },
+  { key: 'all',   label: 'All Time' },
+];
 
 export default function Reports() {
   const { batches, sales, expenses, products, t } = useBusiness();
-  const [timeframe, setTimeframe] = useState('month'); // 'today' | 'week' | 'month' | 'all'
-  const [chartData, setChartData] = useState([]);
+  const [timeframe, setTimeframe] = useState('month');
+  const [batchData, setBatchData] = useState([]);
   const [summary, setSummary] = useState(null);
   const [topProducts, setTopProducts] = useState([]);
   const [selectedBar, setSelectedBar] = useState(null);
@@ -21,16 +163,12 @@ export default function Reports() {
     async function load() {
       setLoading(true);
       try {
-        const [batchData, periodSummary, productStats] = await Promise.all([
+        const [bd, ps, pp] = await Promise.all([
           getBatchProfitData(),
           getPeriodicSummary(timeframe),
           getProductPerformance(),
         ]);
-        if (isMounted) {
-          setChartData(batchData);
-          setSummary(periodSummary);
-          setTopProducts(productStats);
-        }
+        if (isMounted) { setBatchData(bd); setSummary(ps); setTopProducts(pp); }
       } catch (err) {
         console.error('Failed to load reports:', err);
       } finally {
@@ -38,16 +176,36 @@ export default function Reports() {
       }
     }
     load();
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [batches, sales, expenses, products, timeframe]);
 
-  const handleBarClick = (data) => {
-    if (data && data.activePayload && data.activePayload.length > 0) {
-      setSelectedBar(data.activePayload[0].payload);
-    }
-  };
+  /* Sales vs Profit grouped chart data */
+  const salesProfitData = useMemo(() => {
+    if (!sales || sales.length === 0) return [];
+    const now = new Date();
+    const cutoff = new Date(now);
+    if (timeframe === 'today') { cutoff.setHours(0,0,0,0); }
+    else if (timeframe === 'week') { cutoff.setDate(now.getDate() - 6); }
+    else if (timeframe === 'month') { cutoff.setDate(1); cutoff.setHours(0,0,0,0); }
+    else if (timeframe === 'year') { cutoff.setMonth(0,1); cutoff.setHours(0,0,0,0); }
+    else { cutoff.setFullYear(2000); }
+
+    const filtered = sales.filter(s => new Date(s.date) >= cutoff);
+    const grouped = {};
+    filtered.forEach(s => {
+      const d = new Date(s.date);
+      let key;
+      if (timeframe === 'today') key = d.toLocaleTimeString('en-IN', { hour: '2-digit', hour12: true });
+      else if (timeframe === 'week' || timeframe === 'month') key = d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+      else key = d.toLocaleDateString('en-IN', { month: 'short', year: '2-digit' });
+      if (!grouped[key]) grouped[key] = { label: key, sales: 0, profit: 0 };
+      grouped[key].sales += Number(s.totalAmount) || 0;
+      grouped[key].profit += Number(s.totalProfit) || 0;
+    });
+    return Object.values(grouped).slice(-10);
+  }, [sales, timeframe]);
+
+  const insights = useMemo(() => buildInsights(summary, topProducts, batchData), [summary, topProducts, batchData]);
 
   const hasAnyData = batches.length > 0 || sales.length > 0 || expenses.length > 0;
 
@@ -55,204 +213,231 @@ export default function Reports() {
     return (
       <div className="page-content">
         <PageHeader title={t.reports} />
-        <EmptyState
-          emoji="📊"
-          title={t.noDataYet}
-          description={t.startReportsDesc}
-        />
+        <EmptyState emoji="📊" title={t.noDataYet} description={t.startReportsDesc} />
       </div>
     );
   }
 
+  const fmtK = (v) => v >= 1000 ? `₹${(v/1000).toFixed(0)}k` : `₹${v}`;
+
   return (
     <div className="page-content">
-      <PageHeader title={t.reports} />
+      <PageHeader title="📊 Reports" />
 
-      {/* Timeframe Filter Tabs */}
-      <div className="tab-switcher" style={{ marginBottom: 'var(--space-xl)' }}>
-        <button
-          type="button"
-          className={`tab-switcher-btn ${timeframe === 'today' ? 'active' : ''}`}
-          onClick={() => setTimeframe('today')}
-        >
-          {t.today || 'Today'}
-        </button>
-        <button
-          type="button"
-          className={`tab-switcher-btn ${timeframe === 'week' ? 'active' : ''}`}
-          onClick={() => setTimeframe('week')}
-        >
-          {t.thisWeek || 'This Week'}
-        </button>
-        <button
-          type="button"
-          className={`tab-switcher-btn ${timeframe === 'month' ? 'active' : ''}`}
-          onClick={() => setTimeframe('month')}
-        >
-          {t.thisMonth || 'This Month'}
-        </button>
-        <button
-          type="button"
-          className={`tab-switcher-btn ${timeframe === 'all' ? 'active' : ''}`}
-          onClick={() => setTimeframe('all')}
-        >
-          {t.allTime || 'All Time'}
-        </button>
+      {/* ── Timeframe Tabs ── */}
+      <div style={{
+        display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4,
+        marginBottom: 'var(--space-xl)', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch',
+      }}>
+        {TABS.map(tab => (
+          <button key={tab.key} type="button" onClick={() => setTimeframe(tab.key)} style={{
+            padding: '8px 16px', borderRadius: 20, border: 'none', cursor: 'pointer',
+            fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', flexShrink: 0, transition: 'all 0.2s',
+            background: timeframe === tab.key ? 'var(--color-primary)' : 'var(--color-surface-2)',
+            color: timeframe === tab.key ? '#fff' : 'var(--color-text-secondary)',
+            boxShadow: timeframe === tab.key ? '0 2px 8px rgba(108,99,255,0.35)' : 'none',
+          }}>
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {/* Financial Overview Cards */}
-      {summary && (
-        <div style={{ marginBottom: 'var(--space-2xl)' }}>
-          <div className="section-header">
-            <div className="section-title">{t.financialOverview || 'Financial Overview'}</div>
-          </div>
-          <div className="card" style={{ padding: 'var(--space-lg)' }}>
-            <div className="summary-row">
-              <span className="summary-row-label">{t.salesLabel}</span>
-              <span className="summary-row-value">{formatCurrency(summary.totalSales)}</span>
-            </div>
-            <div className="summary-row">
-              <span className="summary-row-label">{t.profitLabel}</span>
-              <span className="summary-row-value profit">{formatCurrency(summary.totalProfit)}</span>
-            </div>
-            <div className="summary-row">
-              <span className="summary-row-label">{t.expensesLabel}</span>
-              <span className="summary-row-value loss">{formatCurrency(summary.totalExpenses)}</span>
-            </div>
-            <div className="summary-row" style={{ borderTop: '1px dashed var(--color-border)', paddingTop: 'var(--space-sm)', marginTop: 'var(--space-xs)' }}>
-              <span className="summary-row-label" style={{ fontWeight: 700, color: 'var(--color-text)' }}>{t.netProfitLabel}</span>
-              <span className={`summary-row-value ${summary.netProfit >= 0 ? 'profit' : 'loss'}`} style={{ fontSize: 'var(--font-size-lg)', fontWeight: 800 }}>
-                {formatCurrency(summary.netProfit)}
-              </span>
-            </div>
-            <div className="summary-row" style={{ borderTop: '1px solid var(--color-border-light)', paddingTop: 'var(--space-sm)', marginTop: 'var(--space-xs)' }}>
-              <span className="summary-row-label">{t.stockLabel}</span>
-              <span className="summary-row-value">{formatCurrency(summary.stockValue)}</span>
-            </div>
-          </div>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 'var(--space-4xl)', color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-sm)' }}>
+          ⏳ Loading your reports...
         </div>
-      )}
-
-      {/* Batch Profit Chart */}
-      <div className="section-header">
-        <div className="section-title">{t.batchProfit}</div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 'var(--space-2xl)', padding: 'var(--space-lg) var(--space-sm)', minWidth: 0 }}>
-        {chartData.length > 0 ? (
-          <>
-            <div style={{ width: '100%', height: 230, minWidth: 0 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} onClick={handleBarClick} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f3" vertical={false} />
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fontSize: 11, fill: '#9CA3AF' }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: '#9CA3AF' }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => `₹${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`}
-                    width={45}
-                  />
-                  <Bar dataKey="realizedProfit" radius={[6, 6, 0, 0]} cursor="pointer">
-                    {chartData.map((entry, index) => (
-                      <Cell
-                        key={index}
-                        fill={entry.status === 'completed' ? '#22C55E' : '#5B1EE6'}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 'var(--space-xl)', marginTop: 'var(--space-sm)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                <div style={{ width: 10, height: 10, borderRadius: 2, background: '#22C55E' }} />
-                {t.completed}
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                <div style={{ width: 10, height: 10, borderRadius: 2, background: '#5B1EE6' }} />
-                {t.stillSelling}
+      ) : (
+        <>
+          {/* ── Stat Cards ── */}
+          {summary && (
+            <div style={{ marginBottom: 'var(--space-2xl)' }}>
+              <SectionTitle title="📋 Overview" subtitle="Your numbers for this period" />
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                <StatCard emoji="🛍️" label="Total Sales" value={formatCurrency(summary.totalSales)} color={C.sales} sub={`${summary.salesCount || 0} transactions`} />
+                <StatCard emoji="💰" label="Profit Earned" value={formatCurrency(summary.totalProfit)} color={C.profit} />
+                <StatCard emoji="💸" label="Expenses" value={formatCurrency(summary.totalExpenses)} color={C.expense} />
+                <StatCard
+                  emoji={summary.netProfit >= 0 ? '🚀' : '📉'}
+                  label="Net Profit"
+                  value={formatCurrency(summary.netProfit)}
+                  color={summary.netProfit >= 0 ? C.profit : '#EF4444'}
+                  sub={summary.netProfit >= 0 ? 'After expenses' : 'Loss — expenses high'}
+                />
               </div>
             </div>
-          </>
-        ) : (
-          <div style={{ padding: 'var(--space-xl)', textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-sm)' }}>
-            📦 {t.noBatchesYet || 'No purchase batches recorded yet'}
-          </div>
-        )}
-      </div>
+          )}
 
-      {/* Top Performing Clothes */}
-      {topProducts.length > 0 && (
-        <div style={{ marginBottom: 'var(--space-2xl)' }}>
-          <div className="section-header">
-            <div className="section-title">{t.topSelling || 'Top Selling Clothes'}</div>
-          </div>
-          <div className="card" style={{ padding: 'var(--space-md) var(--space-lg)' }}>
-            {topProducts.slice(0, 5).map((item, idx) => (
-              <div
-                key={item.id || idx}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: 'var(--space-sm) 0',
-                  borderBottom: idx < topProducts.slice(0, 5).length - 1 ? '1px solid var(--color-border-light)' : 'none',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)' }}>
-                  <span style={{ fontSize: 'var(--font-size-xs)', fontWeight: 800, color: 'var(--color-primary)', width: 20 }}>
-                    #{idx + 1}
-                  </span>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)' }}>{item.name}</div>
-                    <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-                      {item.totalQty} {t.itemsSold || 'sold'}
-                    </div>
+          {/* ── Sales vs Profit Chart ── */}
+          <div style={{ marginBottom: 'var(--space-2xl)' }}>
+            <SectionTitle title="📈 Sales & Profit Chart" subtitle="How much you collected vs earned" />
+            <ChartCard>
+              {salesProfitData.length > 0 ? (
+                <>
+                  <div style={{ width: '100%', height: 220 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={salesProfitData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }} barGap={3}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} axisLine={false} tickLine={false} tickFormatter={fmtK} width={42} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
+                        <Bar dataKey="sales" name="Sales" fill={C.sales} radius={[5,5,0,0]} maxBarSize={32} />
+                        <Bar dataKey="profit" name="Profit" fill={C.profit} radius={[5,5,0,0]} maxBarSize={32} />
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
+                  <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--color-surface-2)', borderRadius: 10, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                    💡 <strong style={{ color: C.sales }}>Purple</strong> = total collected &nbsp;|&nbsp; <strong style={{ color: C.profit }}>Green</strong> = your actual profit
+                  </div>
+                </>
+              ) : (
+                <div style={{ padding: 'var(--space-xl)', textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-sm)' }}>
+                  🛒 No sales data for this period
                 </div>
-                <div style={{ fontWeight: 800, color: 'var(--color-success-dark)', fontSize: 'var(--font-size-sm)' }}>
-                  {formatCurrency(item.totalRevenue)}
-                </div>
-              </div>
-            ))}
+              )}
+            </ChartCard>
           </div>
-        </div>
+
+          {/* ── Batch Profit Chart ── */}
+          <div style={{ marginBottom: 'var(--space-2xl)' }}>
+            <SectionTitle title="📦 Batch Profit Chart" subtitle="Profit earned from each purchase batch (tap a bar for details)" />
+            <ChartCard>
+              {batchData.length > 0 ? (
+                <>
+                  <div style={{ width: '100%', height: 200 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={batchData.slice(-8)}
+                        onClick={(d) => d?.activePayload?.length && setSelectedBar(d.activePayload[0].payload)}
+                        margin={{ top: 8, right: 8, left: -8, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                        <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} axisLine={false} tickLine={false} tickFormatter={fmtK} width={42} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Bar dataKey="realizedProfit" name="Profit" radius={[6,6,0,0]} cursor="pointer" maxBarSize={36}>
+                          {batchData.slice(-8).map((entry, index) => (
+                            <Cell key={index} fill={entry.status === 'completed' ? C.completed : C.batch} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 10 }}>
+                    {[{ color: C.completed, label: '✅ Batch Sold Out' }, { color: C.batch, label: '🔄 Still Selling' }].map(l => (
+                      <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                        <div style={{ width: 10, height: 10, borderRadius: 3, background: l.color }} />
+                        {l.label}
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 10, padding: '8px 12px', background: 'var(--color-surface-2)', borderRadius: 10, fontSize: 12, color: 'var(--color-text-secondary)', textAlign: 'center' }}>
+                    👆 Tap any bar to see batch details
+                  </div>
+                </>
+              ) : (
+                <div style={{ padding: 'var(--space-xl)', textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: 'var(--font-size-sm)' }}>
+                  📦 No purchase batches recorded yet
+                </div>
+              )}
+            </ChartCard>
+          </div>
+
+          {/* ── Top Selling Items ── */}
+          {topProducts.length > 0 && (
+            <div style={{ marginBottom: 'var(--space-2xl)' }}>
+              <SectionTitle title="⭐ Top Selling Items" subtitle="Items that sell the most" />
+              <div style={{ background: 'var(--color-surface)', borderRadius: 18, overflow: 'hidden', border: '1px solid var(--color-border)', boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+                {topProducts.slice(0, 5).map((item, idx) => {
+                  const maxRev = topProducts[0].totalRevenue || 1;
+                  const pct = Math.max(6, (item.totalRevenue / maxRev) * 100);
+                  const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+                  return (
+                    <div key={item.id || idx} style={{ padding: '14px 16px', borderBottom: idx < Math.min(topProducts.length,5)-1 ? '1px solid var(--color-border-light)' : 'none' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{ fontSize: 20 }}>{medals[idx]}</span>
+                          <div>
+                            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text)' }}>{item.name}</div>
+                            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>{item.totalQty} pieces sold</div>
+                          </div>
+                        </div>
+                        <div style={{ fontWeight: 800, color: C.profit, fontSize: 15 }}>{formatCurrency(item.totalRevenue)}</div>
+                      </div>
+                      <div style={{ height: 5, background: 'var(--color-border-light)', borderRadius: 3, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${C.sales}, ${C.profit})`, borderRadius: 3 }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── Smart Insights ── */}
+          {insights.length > 0 && (
+            <div style={{ marginBottom: 'var(--space-2xl)' }}>
+              <SectionTitle title="🧠 Smart Insights" subtitle="Tips to grow your business" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {insights.map((ins, i) => (
+                  <InsightCard key={i} emoji={ins.emoji} text={ins.text} color={ins.color} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Stock Overview ── */}
+          {summary && summary.stockValue > 0 && (
+            <div style={{ marginBottom: 'var(--space-2xl)' }}>
+              <SectionTitle title="🏪 Stock Overview" subtitle="Remaining inventory value" />
+              <ChartCard>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 4px', borderBottom: '1px solid var(--color-border-light)', marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>Stock (at selling price)</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>Revenue if you sell all stock now</div>
+                  </div>
+                  <div style={{ fontWeight: 800, fontSize: 16, color: C.stock }}>{formatCurrency(summary.stockValue)}</div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 4px' }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>Stock (at purchase price)</div>
+                    <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>Amount invested in unsold items</div>
+                  </div>
+                  <div style={{ fontWeight: 800, fontSize: 16, color: C.expense }}>{formatCurrency(summary.stockCost)}</div>
+                </div>
+              </ChartCard>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Batch Detail Modal */}
-      <Modal
-        isOpen={!!selectedBar}
-        onClose={() => setSelectedBar(null)}
-        title={selectedBar ? `${t.batch} #${selectedBar.batchNumber}` : ''}
-      >
+      {/* ── Batch Detail Modal ── */}
+      <Modal isOpen={!!selectedBar} onClose={() => setSelectedBar(null)} title={selectedBar ? `Batch #${selectedBar.batchNumber}` : ''}>
         {selectedBar && (
           <>
-            <div style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-xl)', fontSize: 'var(--font-size-sm)' }}>
-              {selectedBar.label}
+            <div style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-lg)', fontSize: 13 }}>
+              📅 {selectedBar.label}
             </div>
-            <div className="summary-row">
-              <span className="summary-row-label">{t.purchaseCost}</span>
-              <span className="summary-row-value">{formatCurrency(selectedBar.totalInvestment)}</span>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[
+                { label: '💵 Purchase Cost', value: formatCurrency(selectedBar.totalInvestment), color: C.expense },
+                { label: '✅ Realized Profit', value: formatCurrency(selectedBar.realizedProfit), color: C.profit },
+                ...(selectedBar.status !== 'completed' ? [{ label: '⏳ Remaining Profit', value: formatCurrency(selectedBar.expectedProfit), color: C.sales }] : []),
+              ].map((row, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--color-surface-2)', borderRadius: 10 }}>
+                  <span style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontWeight: 600 }}>{row.label}</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: row.color }}>{row.value}</span>
+                </div>
+              ))}
             </div>
-            <div className="summary-row">
-              <span className="summary-row-label">{t.realizedProfit}</span>
-              <span className="summary-row-value profit">{formatCurrency(selectedBar.realizedProfit)}</span>
-            </div>
-            {selectedBar.status !== 'completed' && (
-              <div className="summary-row">
-                <span className="summary-row-label">{t.remainingProfit}</span>
-                <span className="summary-row-value">{formatCurrency(selectedBar.expectedProfit)}</span>
-              </div>
-            )}
-            <div style={{ marginTop: 'var(--space-lg)' }}>
-              <span className={`status-badge ${selectedBar.status === 'completed' ? 'status-badge--completed' : 'status-badge--selling'}`}>
-                {selectedBar.status === 'completed' ? `🟢 ${t.completed}` : `🟡 ${t.stillSelling}`}
+            <div style={{ marginTop: 'var(--space-lg)', textAlign: 'center' }}>
+              <span style={{
+                display: 'inline-block', padding: '6px 16px', borderRadius: 20, fontSize: 13, fontWeight: 700,
+                background: selectedBar.status === 'completed' ? '#22C55E20' : '#5B1EE620',
+                color: selectedBar.status === 'completed' ? '#16A34A' : '#5B1EE6',
+                border: `1px solid ${selectedBar.status === 'completed' ? '#22C55E40' : '#5B1EE640'}`,
+              }}>
+                {selectedBar.status === 'completed' ? '✅ Batch Sold Out' : '🔄 Still Selling'}
               </span>
             </div>
           </>
