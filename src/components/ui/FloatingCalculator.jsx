@@ -115,7 +115,7 @@ export default function FloatingCalculator() {
             height: '24px',
             color: '#FFFFFF',
           }}
-          title="Close"
+          title={t.close || 'Close'}
         >
           <X size={13} />
         </button>
@@ -158,15 +158,18 @@ export default function FloatingCalculator() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '4px',
+                    whiteSpace: 'nowrap',
                   }}
+                  title={t.openCalculator || 'Full screen'}
                 >
                   <Maximize2 size={13} />
-                  <span>Full</span>
+                  <span>{t.fullScreen || 'Full'}</span>
                 </button>
                 <button
                   type="button"
                   onClick={closeFloatingCalc}
                   style={{ color: 'var(--color-text-secondary)', padding: '4px' }}
+                  title={t.close || 'Close'}
                 >
                   <X size={20} />
                 </button>

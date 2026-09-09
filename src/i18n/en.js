@@ -107,11 +107,14 @@ const en = {
   totalBuyCalc: 'Total Buy',
   totalSellCalc: 'Total Sell',
   minimize: 'Minimize',
+  maximize: 'Maximize',
+  fullScreen: 'Full',
   history: 'History',
   clearHistory: 'Clear History',
   noHistoryYet: 'No calculations yet',
   openCalculator: 'Open Calculator',
   calcRestored: 'Previous calculation restored',
+  close: 'Close',
 
   // Reports
   batchProfit: 'Batch Profit',
@@ -121,6 +124,33 @@ const en = {
   expensesLabel: 'Expenses',
   netProfitLabel: 'Net Profit',
   stockLabel: 'Stock',
+  overview: 'Overview',
+  overviewSub: 'Your numbers for this period',
+  totalSales: 'Total Sales',
+  transactionsCount: '{n} transactions',
+  afterExpenses: 'After expenses',
+  highExpensesLoss: 'Loss — expenses high',
+  salesAndProfitChart: 'Sales & Profit Chart',
+  salesAndProfitChartSub: 'How much you collected vs earned',
+  salesProfitLegendHint: 'Purple = total collected | Green = your actual profit',
+  batchProfitChart: 'Batch Profit Chart',
+  batchProfitChartSub: 'Profit earned from each purchase batch (tap a bar for details)',
+  batchSoldOut: 'Batch Sold Out',
+  stillSellingBadge: 'Still Selling',
+  tapBarForDetails: 'Tap any bar to see batch details',
+  topSellingTitle: 'Top Selling Items',
+  topSellingSubtitle: 'Items that sell the most',
+  piecesSoldText: '{n} pieces sold',
+  smartInsightsTitle: 'Smart Insights',
+  smartInsightsSubtitle: 'Tips to grow your business',
+  stockOverviewTitle: 'Stock Overview',
+  stockOverviewSubtitle: 'Remaining inventory value',
+  stockSellingValueTitle: 'Stock (at selling price)',
+  stockSellingValueDesc: 'Revenue if you sell all stock now',
+  stockCostValueTitle: 'Stock (at purchase price)',
+  stockCostValueDesc: 'Amount invested in unsold items',
+  loadingReports: 'Loading your reports...',
+  noSalesDataPeriod: 'No sales data for this period',
 
   // Reports & Empty
   noDataYet: 'No data yet',
@@ -150,6 +180,8 @@ const en = {
   thisWeek: 'This Week',
   thisMonth: 'This Month',
   thisYear: 'This Year',
+  week: 'Week',
+  month: 'Month',
   yearly: 'Yearly',
   allTime: 'All Time',
   topSelling: 'Top Selling Items',
@@ -192,4 +224,3 @@ const en = {
 };
 
 export default en;
-

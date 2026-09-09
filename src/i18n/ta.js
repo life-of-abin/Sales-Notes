@@ -107,11 +107,14 @@ const ta = {
   totalBuyCalc: 'மொத்த கொள்முதல்',
   totalSellCalc: 'மொத்த விற்பனை',
   minimize: 'சிறிதாக்கு',
+  maximize: 'பெரிதாக்கு',
+  fullScreen: 'முழுத்திரை',
   history: 'முந்தைய கணக்குகள்',
   clearHistory: 'வரலாற்றை அழி',
   noHistoryYet: 'கணக்குகள் எதுவும் இல்லை',
   openCalculator: 'கால்குலேட்டரை திற',
   calcRestored: 'முந்தைய கணக்கு மீட்கப்பட்டது',
+  close: 'மூடு',
 
   // Reports
   batchProfit: 'தொகுதி வாரியாக லாபம்',
@@ -121,6 +124,33 @@ const ta = {
   expensesLabel: 'செலவுகள்',
   netProfitLabel: 'நிகர லாபம்',
   stockLabel: 'இருப்பு',
+  overview: 'பொது விவரம்',
+  overviewSub: 'இந்த காலகட்டத்தின் கணக்குகள்',
+  totalSales: 'மொத்த விற்பனை',
+  transactionsCount: '{n} விற்பனைகள்',
+  afterExpenses: 'செலவுகள் போக',
+  highExpensesLoss: 'நஷ்டம் — செலவு அதிகம்',
+  salesAndProfitChart: 'விற்பனை மற்றும் லாப விளக்கப்படம்',
+  salesAndProfitChartSub: 'விற்பனை வரவு vs உங்கள் நேரடி லாபம்',
+  salesProfitLegendHint: 'ஊதா = மொத்த வசூல் | பச்சை = உங்கள் லாபம்',
+  batchProfitChart: 'தொகுதி வாரியான லாப விளக்கப்படம்',
+  batchProfitChartSub: 'ஒவ்வொரு கொள்முதல் தொகுதியிலும் கிடைத்த லாபம் (பாரைத் தொடவும்)',
+  batchSoldOut: 'தொகுதி விற்று முடிந்தது',
+  stillSellingBadge: 'விற்பனையில் உள்ளது',
+  tapBarForDetails: 'விவரங்களை பார்க்க ஏதேனும் பாரைத் தொடவும்',
+  topSellingTitle: 'அதிகம் விற்ற துணிகள்',
+  topSellingSubtitle: 'அதிகமாக விற்பனையான வகைகள்',
+  piecesSoldText: '{n} துணிகள் விற்றன',
+  smartInsightsTitle: 'வியாபார யோசனைகள்',
+  smartInsightsSubtitle: 'வியாபாரத்தை வளர்க்க வழிகள்',
+  stockOverviewTitle: 'இருப்பு நிலவரம்',
+  stockOverviewSubtitle: 'மீதமுள்ள சரக்கின் மதிப்பு',
+  stockSellingValueTitle: 'இருப்பு (விற்பனை மதிப்பில்)',
+  stockSellingValueDesc: 'அனைத்து இருப்புகளையும் விற்றால் கிடைக்கும் தொகை',
+  stockCostValueTitle: 'இருப்பு (வாங்கிய அடக்க மதிப்பில்)',
+  stockCostValueDesc: 'விற்கப்படாத துணிகளில் முடங்கிய முதலீடு',
+  loadingReports: 'அறிக்கைகள் தயாராகிறது...',
+  noSalesDataPeriod: 'இந்த காலகட்டத்தில் விற்பனை எதுவும் இல்லை',
 
   // Reports & Empty
   noDataYet: 'விவரங்கள் எதுவும் இல்லை',
@@ -150,6 +180,8 @@ const ta = {
   thisWeek: 'இந்த வாரம்',
   thisMonth: 'இந்த மாதம்',
   thisYear: 'இந்த ஆண்டு',
+  week: 'வாரம்',
+  month: 'மாதம்',
   yearly: 'வருடாந்திரம்',
   allTime: 'எல்லா நேரமும்',
   topSelling: 'அதிகம் விற்ற துணிகள்',
@@ -192,4 +224,3 @@ const ta = {
 };
 
 export default ta;
-

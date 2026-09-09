@@ -38,10 +38,20 @@ export default function Purchases() {
   const openBatchDetail = async (batch) => {
     const lots = await db.inventoryLots.where('batchId').equals(batch.id).toArray();
     const products = await db.products.toArray();
-    const enrichedLots = lots.map((lot) => ({
-      ...lot,
-      productName: products.find((p) => p.id === lot.productId)?.name || 'Item',
-    }));
+    const allocations = await db.saleAllocations.toArray();
+
+    const enrichedLots = lots.map((lot) => {
+      const lotAllocations = allocations.filter((a) => a.lotId === lot.id);
+      const lotRealizedProfit = lotAllocations.reduce(
+        (sum, a) => sum + a.quantity * (a.sellingPrice - a.purchasePrice),
+        0
+      );
+      return {
+        ...lot,
+        productName: products.find((p) => p.id === lot.productId)?.name || 'Item',
+        realizedProfit: lotRealizedProfit,
+      };
+    });
     setBatchLots(enrichedLots);
     setSelectedBatch(batch);
   };
@@ -116,28 +126,53 @@ export default function Purchases() {
             </div>
 
             {/* Items in batch */}
-            {batchLots.map((lot) => (
-              <div key={lot.id} className="card" style={{ marginBottom: 'var(--space-sm)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontWeight: 600 }}>{formatProductDisplayName(lot.productName, language)}</span>
-                  <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-                    {lot.quantity} {t.pieces}
-                  </span>
+            {batchLots.map((lot) => {
+              const isMultiItem = batchLots.length > 1;
+              const lotProfit = lot.realizedProfit ?? ((lot.sellingPrice - lot.purchasePrice) * (lot.quantity - lot.remainingQty));
+
+              return (
+                <div key={lot.id} className="card" style={{ marginBottom: 'var(--space-sm)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <span style={{ fontWeight: 600 }}>{formatProductDisplayName(lot.productName, language)}</span>
+                    <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
+                      {lot.quantity} {t.pieces}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                    <span>{t.buyLabel}: {formatCurrency(lot.purchasePrice)}</span>
+                    <span>{t.sellLabel}: {formatCurrency(lot.sellingPrice)}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)', marginTop: 4 }}>
+                    <span style={{ color: 'var(--color-text-tertiary)' }}>
+                      {t.remaining}: {lot.remainingQty}/{lot.quantity}
+                    </span>
+                    {!isMultiItem && (
+                      <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
+                        {formatCurrency(lotProfit)} {t.earned}
+                      </span>
+                    )}
+                  </div>
+                  {isMultiItem && (
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      fontSize: 'var(--font-size-sm)',
+                      marginTop: 6,
+                      paddingTop: 6,
+                      borderTop: '1px dashed var(--color-border, rgba(0,0,0,0.08))',
+                    }}>
+                      <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>
+                        {t.realizedProfit}
+                      </span>
+                      <span style={{ color: 'var(--color-success)', fontWeight: 700, fontSize: '0.95rem' }}>
+                        {formatCurrency(lotProfit)}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                  <span>{t.buyLabel}: {formatCurrency(lot.purchasePrice)}</span>
-                  <span>{t.sellLabel}: {formatCurrency(lot.sellingPrice)}</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)', marginTop: 4 }}>
-                  <span style={{ color: 'var(--color-text-tertiary)' }}>
-                    {t.remaining}: {lot.remainingQty}/{lot.quantity}
-                  </span>
-                  <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
-                    {formatCurrency((lot.sellingPrice - lot.purchasePrice) * (lot.quantity - lot.remainingQty))} {t.earned}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
 
             <div className="divider" />
 
