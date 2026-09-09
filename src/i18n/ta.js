@@ -143,6 +143,11 @@ const ta = {
   thisWeek: 'இந்த வாரம்',
   thisMonth: 'இந்த மாதம்',
   all: 'அனைத்தும்',
+  allTime: 'எல்லா நேரமும்',
+  topSelling: 'அதிகம் விற்ற துணிகள்',
+  itemsSold: 'விற்பனையானது',
+  financialOverview: 'நிதி நிலவரம்',
+  noBatchesYet: 'கொள்முதல் தொகுதிகள் இன்னும் இல்லை',
 
   // Empty states
   noPurchases: 'கொள்முதல் எதுவும் இல்லை',

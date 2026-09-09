@@ -7,66 +7,160 @@ import { getShortDate } from '../utils/formatDate';
  * Returns an array of { batchId, batchNumber, date, label, realizedProfit, expectedProfit, status, totalInvestment }
  */
 export async function getBatchProfitData() {
-  const batches = await db.purchaseBatches.orderBy('date').toArray();
+  try {
+    const batches = await db.purchaseBatches.orderBy('date').toArray();
 
-  const results = [];
-  for (const batch of batches) {
-    const realized = await calculateRealizedProfit(batch.id);
-    const expected = await calculateExpectedProfit(batch.id);
-    const status = await getBatchStatus(batch.id);
+    const results = [];
+    for (const batch of batches) {
+      const realized = await calculateRealizedProfit(batch.id);
+      const expected = await calculateExpectedProfit(batch.id);
+      const status = await getBatchStatus(batch.id);
 
-    results.push({
-      batchId: batch.id,
-      batchNumber: batch.batchNumber,
-      date: batch.date,
-      label: getShortDate(batch.date),
-      realizedProfit: realized,
-      expectedProfit: expected,
-      totalProfit: realized + expected,
-      status,
-      totalInvestment: batch.totalInvestment,
-    });
+      results.push({
+        batchId: batch.id,
+        batchNumber: batch.batchNumber,
+        date: batch.date,
+        label: `#${batch.batchNumber} (${getShortDate(batch.date)})`,
+        realizedProfit: Number(realized) || 0,
+        expectedProfit: Number(expected) || 0,
+        totalProfit: (Number(realized) || 0) + (Number(expected) || 0),
+        status,
+        totalInvestment: Number(batch.totalInvestment) || 0,
+      });
+    }
+
+    return results;
+  } catch (err) {
+    console.error('Error in getBatchProfitData:', err);
+    return [];
   }
-
-  return results;
 }
 
 /**
- * Get monthly summary for a given month/year.
+ * Get summary by flexible timeframe: 'today' | 'week' | 'month' | 'all'
+ */
+export async function getPeriodicSummary(timeframe = 'month', targetDate = new Date()) {
+  try {
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth();
+    
+    let startDate, endDate;
+    
+    if (timeframe === 'today') {
+      startDate = new Date(year, month, targetDate.getDate(), 0, 0, 0, 0);
+      endDate = new Date(year, month, targetDate.getDate(), 23, 59, 59, 999);
+    } else if (timeframe === 'week') {
+      const day = targetDate.getDay();
+      const diff = targetDate.getDate() - day + (day === 0 ? -6 : 1);
+      startDate = new Date(year, month, diff, 0, 0, 0, 0);
+      endDate = new Date(year, month, diff + 6, 23, 59, 59, 999);
+    } else if (timeframe === 'month') {
+      startDate = new Date(year, month, 1, 0, 0, 0, 0);
+      endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+    } else if (timeframe === 'year') {
+      startDate = new Date(year, 0, 1, 0, 0, 0, 0);
+      endDate = new Date(year, 11, 31, 23, 59, 59, 999);
+    } else {
+      // all time
+      startDate = new Date(0);
+      endDate = new Date(8640000000000000);
+    }
+
+    // Sales
+    const sales = await db.sales.toArray();
+    const filteredSales = sales.filter((s) => {
+      const d = new Date(s.date);
+      return d >= startDate && d <= endDate;
+    });
+    const totalSales = filteredSales.reduce((sum, s) => sum + (Number(s.totalAmount) || 0), 0);
+    const totalProfit = filteredSales.reduce((sum, s) => sum + (Number(s.totalProfit) || 0), 0);
+    const salesCount = filteredSales.length;
+
+    // Expenses
+    const expenses = await db.expenses.toArray();
+    const filteredExpenses = expenses.filter((e) => {
+      const d = new Date(e.date);
+      return d >= startDate && d <= endDate;
+    });
+    const totalExpenses = filteredExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
+    // Current Stock Value
+    const lots = await db.inventoryLots.toArray();
+    const stockValue = lots.reduce(
+      (sum, l) => sum + ((Number(l.remainingQty) || 0) * (Number(l.sellingPrice) || 0)),
+      0
+    );
+    const stockCost = lots.reduce(
+      (sum, l) => sum + ((Number(l.remainingQty) || 0) * (Number(l.purchasePrice) || 0)),
+      0
+    );
+
+    return {
+      totalSales,
+      totalProfit,
+      totalExpenses,
+      netProfit: totalProfit - totalExpenses,
+      salesCount,
+      stockValue,
+      stockCost,
+      timeframe,
+      startDate,
+      endDate,
+    };
+  } catch (err) {
+    console.error('Error in getPeriodicSummary:', err);
+    return {
+      totalSales: 0,
+      totalProfit: 0,
+      totalExpenses: 0,
+      netProfit: 0,
+      salesCount: 0,
+      stockValue: 0,
+      stockCost: 0,
+    };
+  }
+}
+
+/**
+ * Backward-compatible monthly summary helper
  */
 export async function getMonthlySummary(month, year) {
-  const startDate = new Date(year, month, 1);
-  const endDate = new Date(year, month + 1, 0, 23, 59, 59);
+  const targetDate = new Date(year, month, 15);
+  return getPeriodicSummary('month', targetDate);
+}
 
-  // Sales
-  const sales = await db.sales.toArray();
-  const monthSales = sales.filter((s) => {
-    const d = new Date(s.date);
-    return d >= startDate && d <= endDate;
-  });
-  const totalSales = monthSales.reduce((sum, s) => sum + s.totalAmount, 0);
-  const totalProfit = monthSales.reduce((sum, s) => sum + s.totalProfit, 0);
+/**
+ * Get product sales and performance ranking
+ */
+export async function getProductPerformance() {
+  try {
+    const [saleItems, products] = await Promise.all([
+      db.saleItems.toArray(),
+      db.products.toArray(),
+    ]);
 
-  // Expenses
-  const expenses = await db.expenses.toArray();
-  const monthExpenses = expenses.filter((e) => {
-    const d = new Date(e.date);
-    return d >= startDate && d <= endDate;
-  });
-  const totalExpenses = monthExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const productMap = new Map(products.map((p) => [p.id, p]));
+    const stats = {};
 
-  // Stock value (current, not time-scoped)
-  const lots = await db.inventoryLots.toArray();
-  const stockValue = lots.reduce(
-    (sum, l) => sum + l.remainingQty * l.sellingPrice,
-    0
-  );
+    for (const item of saleItems) {
+      const prod = productMap.get(item.productId);
+      const prodName = prod ? prod.name : 'Item';
+      if (!stats[item.productId]) {
+        stats[item.productId] = {
+          id: item.productId,
+          name: prodName,
+          category: prod?.category || 'General',
+          totalQty: 0,
+          totalRevenue: 0,
+        };
+      }
+      stats[item.productId].totalQty += Number(item.quantity) || 0;
+      stats[item.productId].totalRevenue += (Number(item.quantity) || 0) * (Number(item.sellingPrice) || 0);
+    }
 
-  return {
-    totalSales,
-    totalProfit,
-    totalExpenses,
-    netProfit: totalProfit - totalExpenses,
-    stockValue,
-  };
+    return Object.values(stats).sort((a, b) => b.totalRevenue - a.totalRevenue);
+  } catch (err) {
+    console.error('Error in getProductPerformance:', err);
+    return [];
+  }
 }

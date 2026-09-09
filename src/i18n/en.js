@@ -143,6 +143,11 @@ const en = {
   thisWeek: 'This Week',
   thisMonth: 'This Month',
   all: 'All',
+  allTime: 'All Time',
+  topSelling: 'Top Selling Items',
+  itemsSold: 'sold',
+  financialOverview: 'Financial Overview',
+  noBatchesYet: 'No purchase batches recorded yet',
 
   // Empty states
   noPurchases: 'No purchases yet',
