@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import { roundCurrency } from '../services/calculationService';
 import {
   formatProductDisplayName,
   formatCustomerDisplayName,
@@ -384,8 +385,8 @@ export async function exportReportToExcel({
     const totalQty = pLots.reduce((sum, l) => sum + (l.quantity || 0), 0);
     const remainingQty = pLots.reduce((sum, l) => sum + (l.remainingQty || 0), 0);
     const soldQty = Math.max(0, totalQty - remainingQty);
-    const stockVal = pLots.reduce((sum, l) => sum + (l.remainingQty || 0) * (l.sellingPrice || 0), 0);
-    const stockCost = pLots.reduce((sum, l) => sum + (l.remainingQty || 0) * (l.purchasePrice || 0), 0);
+    const stockVal = roundCurrency(pLots.reduce((sum, l) => sum + (Number(l.remainingQty) || 0) * (Number(l.sellingPrice) || 0), 0));
+    const stockCost = roundCurrency(pLots.reduce((sum, l) => sum + (Number(l.remainingQty) || 0) * (Number(l.purchasePrice) || 0), 0));
 
     const productNameDisplay = formatProductDisplayName(p.name, language);
     const stockStatus =
@@ -401,8 +402,8 @@ export async function exportReportToExcel({
       totalQty,
       soldQty,
       remainingQty,
-      Number(stockCost),
-      Number(stockVal),
+      stockCost,
+      stockVal,
       stockStatus,
     ]);
   });

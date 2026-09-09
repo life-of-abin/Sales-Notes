@@ -1,29 +1,48 @@
 import db from '../db/database';
+import { calculateBatchMetrics, calculateProductMetrics, roundCurrency } from './calculationService';
 
 /**
- * Calculate realized profit from sale allocations, optionally for a specific batch.
+ * Calculate realized profit from sale allocations and lots, optionally for a specific batch.
  */
 export async function calculateRealizedProfit(batchId) {
-  const allocations = await db.saleAllocations.toArray();
+  const [allocations, saleItems, lots] = await Promise.all([
+    db.saleAllocations.toArray(),
+    db.saleItems.toArray(),
+    batchId ? db.inventoryLots.where('batchId').equals(batchId).toArray() : db.inventoryLots.toArray(),
+  ]);
 
-  if (!batchId) {
-    return allocations.reduce(
-      (sum, a) => sum + a.quantity * (a.sellingPrice - a.purchasePrice),
-      0
-    );
+  if (batchId) {
+    const metrics = calculateBatchMetrics(lots, allocations, saleItems);
+    return metrics.realizedProfit;
   }
 
-  // Filter allocations for lots belonging to this batch
-  const batchLots = await db.inventoryLots.where('batchId').equals(batchId).toArray();
-  const batchLotIds = new Set(batchLots.map((l) => l.id));
-
-  return allocations
-    .filter((a) => batchLotIds.has(a.lotId))
-    .reduce((sum, a) => sum + a.quantity * (a.sellingPrice - a.purchasePrice), 0);
+  const metrics = calculateBatchMetrics(lots, allocations, saleItems);
+  return metrics.realizedProfit;
 }
 
 /**
- * Calculate expected profit from remaining stock, optionally for a specific batch.
+ * Calculate expected return (future potential sales revenue) from remaining stock.
+ * Formula: remainingQty * sellingPrice
+ */
+export async function calculateExpectedReturn(batchId) {
+  let lots;
+  if (batchId) {
+    lots = await db.inventoryLots.where('batchId').equals(batchId).toArray();
+  } else {
+    lots = await db.inventoryLots.toArray();
+  }
+
+  return roundCurrency(
+    lots.reduce((sum, l) => {
+      const rQty = Number(l.remainingQty) || 0;
+      const sPrice = Number(l.sellingPrice) || 0;
+      return sum + (rQty > 0 ? rQty * sPrice : 0);
+    }, 0)
+  );
+}
+
+/**
+ * Backward compatibility alias for expected profit
  */
 export async function calculateExpectedProfit(batchId) {
   let lots;
@@ -33,9 +52,13 @@ export async function calculateExpectedProfit(batchId) {
     lots = await db.inventoryLots.toArray();
   }
 
-  return lots.reduce(
-    (sum, l) => sum + l.remainingQty * (l.sellingPrice - l.purchasePrice),
-    0
+  return roundCurrency(
+    lots.reduce((sum, l) => {
+      const rQty = Number(l.remainingQty) || 0;
+      const sPrice = Number(l.sellingPrice) || 0;
+      const bPrice = Number(l.purchasePrice) || 0;
+      return sum + (rQty > 0 ? rQty * (sPrice - bPrice) : 0);
+    }, 0)
   );
 }
 
@@ -45,7 +68,7 @@ export async function calculateExpectedProfit(batchId) {
 export async function getBatchStatus(batchId) {
   const lots = await db.inventoryLots.where('batchId').equals(batchId).toArray();
   if (lots.length === 0) return 'completed';
-  const allSold = lots.every((l) => l.remainingQty === 0);
+  const allSold = lots.every((l) => Number(l.remainingQty) === 0);
   return allSold ? 'completed' : 'selling';
 }
 
@@ -62,7 +85,7 @@ export async function getTotalExpenses(startDate, endDate) {
     expenses = expenses.filter((e) => new Date(e.date) <= new Date(endDate));
   }
 
-  return expenses.reduce((sum, e) => sum + e.amount, 0);
+  return roundCurrency(expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0));
 }
 
 /**
@@ -71,5 +94,5 @@ export async function getTotalExpenses(startDate, endDate) {
 export async function getNetProfit() {
   const realized = await calculateRealizedProfit();
   const expenses = await getTotalExpenses();
-  return realized - expenses;
+  return roundCurrency(realized - expenses);
 }

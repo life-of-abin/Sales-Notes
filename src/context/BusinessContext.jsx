@@ -1,6 +1,7 @@
 import { createContext, useState, useEffect, useCallback } from 'react';
 import db from '../db/database';
 import { allocateFIFO, allocateLot, getAllProductSummaries, getTotalStockValue } from '../services/inventoryService';
+import { roundCurrency, calculateProductMetrics } from '../services/calculationService';
 import { isToday } from '../utils/formatDate';
 import { generateId } from '../utils/generateId';
 import { formatCustomerDisplayName } from '../utils/transliterate';
@@ -134,8 +135,8 @@ export function BusinessProvider({ children }) {
       }
 
       // Create inventory lot
-      const cost = item.quantity * item.purchasePrice;
-      totalInvestment += cost;
+      const cost = roundCurrency(item.quantity * item.purchasePrice);
+      totalInvestment = roundCurrency(totalInvestment + cost);
 
       await db.inventoryLots.add({
         id: generateId(),
@@ -150,7 +151,7 @@ export function BusinessProvider({ children }) {
     }
 
     // Update batch total
-    await db.purchaseBatches.update(batchId, { totalInvestment });
+    await db.purchaseBatches.update(batchId, { totalInvestment: roundCurrency(totalInvestment) });
 
     await refreshData();
     showToast(`${t.purchaseSaved} Batch #${batchNumber}`);
@@ -159,19 +160,30 @@ export function BusinessProvider({ children }) {
 
   // ---- RECORD SALE ----
   const recordSale = useCallback(async (productId, quantity, sellingPrice, discount = 0, customerId = null, paidAmount = null, lotId = null) => {
-    const finalPrice = sellingPrice - discount;
-    const totalAmount = quantity * finalPrice;
+    const sPrice = Number(sellingPrice) || 0;
+    const disc = Number(discount) || 0;
+    const finalPrice = roundCurrency(sPrice - disc);
+    const totalAmount = roundCurrency(quantity * finalPrice);
+    const totalDiscount = roundCurrency(disc * quantity);
 
     // Direct Lot or FIFO allocation
     const allocations = lotId
       ? await allocateLot(lotId, quantity)
       : await allocateFIFO(productId, quantity);
 
-    // Calculate profit
+    // Calculate profit using centralized calculation
     let totalProfit = 0;
     for (const alloc of allocations) {
-      totalProfit += alloc.quantity * (finalPrice - alloc.purchasePrice);
+      const metrics = calculateProductMetrics({
+        purchaseQty: alloc.quantity,
+        soldQty: alloc.quantity,
+        buyPrice: alloc.purchasePrice,
+        sellPrice: sPrice,
+        discount: roundCurrency(disc * alloc.quantity),
+      });
+      totalProfit += metrics.realizedProfit;
     }
+    totalProfit = roundCurrency(totalProfit);
 
     const saleId = generateId();
     const now = new Date().toISOString();
@@ -189,7 +201,7 @@ export function BusinessProvider({ children }) {
       date: now,
       totalAmount,
       totalProfit,
-      discount: discount * quantity,
+      discount: totalDiscount,
       paymentStatus,
     });
 
@@ -201,7 +213,7 @@ export function BusinessProvider({ children }) {
       productId,
       quantity,
       sellingPrice: finalPrice,
-      discount,
+      discount: disc,
     });
 
     // Create sale allocations
@@ -213,13 +225,13 @@ export function BusinessProvider({ children }) {
         quantity: alloc.quantity,
         purchasePrice: alloc.purchasePrice,
         sellingPrice: finalPrice,
-        discount: discount || 0,
+        discount: disc,
       });
     }
 
     // Handle customer payment
     if (customerId && paidAmount !== null) {
-      const pendingAmount = totalAmount - paidAmount;
+      const pendingAmount = roundCurrency(totalAmount - paidAmount);
       if (paidAmount > 0) {
         await db.customerPayments.add({
           id: generateId(),
@@ -233,7 +245,7 @@ export function BusinessProvider({ children }) {
       const cust = await db.customers.get(customerId);
       if (cust) {
         await db.customers.update(customerId, {
-          totalPending: (cust.totalPending || 0) + pendingAmount,
+          totalPending: roundCurrency((cust.totalPending || 0) + pendingAmount),
         });
       }
     }
@@ -248,7 +260,7 @@ export function BusinessProvider({ children }) {
     await db.expenses.add({
       id: generateId(),
       type,
-      amount,
+      amount: roundCurrency(amount),
       note,
       date: new Date().toISOString(),
     });
@@ -263,7 +275,7 @@ export function BusinessProvider({ children }) {
       id,
       name,
       phone,
-      totalPending: Number(initialPending) || 0,
+      totalPending: roundCurrency(initialPending),
     });
     await refreshData();
     showToast(t.customerAdded || 'Customer added');
@@ -278,12 +290,12 @@ export function BusinessProvider({ children }) {
     let customerId;
     const pendingNum = Number(pendingAmount) || 0;
     const paidNum = Number(initialPaid) || 0;
-    const netPending = Math.max(0, pendingNum - paidNum);
+    const netPending = roundCurrency(Math.max(0, pendingNum - paidNum));
 
     if (existing) {
       customerId = existing.id;
       await db.customers.update(customerId, {
-        totalPending: (existing.totalPending || 0) + netPending,
+        totalPending: roundCurrency((existing.totalPending || 0) + netPending),
         phone: phone || existing.phone || '',
       });
     } else {
@@ -315,18 +327,19 @@ export function BusinessProvider({ children }) {
 
   // ---- RECORD CUSTOMER PAYMENT ----
   const recordCustomerPayment = useCallback(async (customerId, amount) => {
+    const amt = roundCurrency(amount);
     await db.customerPayments.add({
       id: generateId(),
       customerId,
       saleId: null,
-      amount,
+      amount: amt,
       date: new Date().toISOString(),
     });
 
     const cust = await db.customers.get(customerId);
     if (cust) {
       await db.customers.update(customerId, {
-        totalPending: Math.max(0, (cust.totalPending || 0) - amount),
+        totalPending: roundCurrency(Math.max(0, (cust.totalPending || 0) - amt)),
       });
     }
 
@@ -343,10 +356,10 @@ export function BusinessProvider({ children }) {
 
   // ---- Computed values ----
   const todaySales = sales.filter((s) => isToday(s.date));
-  const todaySalesTotal = todaySales.reduce((sum, s) => sum + s.totalAmount, 0);
-  const todayProfitTotal = todaySales.reduce((sum, s) => sum + s.totalProfit, 0);
-  const totalPending = customers.reduce((sum, c) => sum + (c.totalPending || 0), 0);
-  const totalExpensesVal = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const todaySalesTotal = roundCurrency(todaySales.reduce((sum, s) => sum + (Number(s.totalAmount) || 0), 0));
+  const todayProfitTotal = roundCurrency(todaySales.reduce((sum, s) => sum + (Number(s.totalProfit) || 0), 0));
+  const totalPending = roundCurrency(customers.reduce((sum, c) => sum + (Number(c.totalPending) || 0), 0));
+  const totalExpensesVal = roundCurrency(expenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0));
 
   const value = {
     loading,

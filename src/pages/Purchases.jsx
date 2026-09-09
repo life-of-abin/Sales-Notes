@@ -4,7 +4,7 @@ import { useBusiness } from '../hooks/useBusiness';
 import { formatCurrency } from '../utils/formatCurrency';
 import { formatDate } from '../utils/formatDate';
 import { formatProductDisplayName } from '../utils/transliterate';
-import { getBatchStatus, calculateRealizedProfit, calculateExpectedProfit } from '../services/profitService';
+import { calculateBatchMetrics } from '../services/calculationService';
 import PageHeader from '../components/layout/PageHeader';
 import EmptyState from '../components/ui/EmptyState';
 import Modal from '../components/ui/Modal';
@@ -16,32 +16,41 @@ export default function Purchases() {
   const { batches, language, t } = useBusiness();
   const [batchDetails, setBatchDetails] = useState({});
   const [selectedBatch, setSelectedBatch] = useState(null);
-  const [batchLots, setBatchLots] = useState([]);
+  const [selectedBatchMetrics, setSelectedBatchMetrics] = useState(null);
 
   useEffect(() => {
     async function loadDetails() {
       const details = {};
-      const allocations = await db.saleAllocations.toArray();
-      const saleItems = await db.saleItems.toArray();
+      const [allocations, saleItems, allLots] = await Promise.all([
+        db.saleAllocations.toArray(),
+        db.saleItems.toArray(),
+        db.inventoryLots.toArray(),
+      ]);
+
       const saleItemsMap = new Map(saleItems.map((si) => [si.id, si]));
+      const lotsByBatch = new Map();
+      for (const lot of allLots) {
+        if (!lotsByBatch.has(lot.batchId)) {
+          lotsByBatch.set(lot.batchId, []);
+        }
+        lotsByBatch.get(lot.batchId).push(lot);
+      }
 
       for (const batch of batches) {
-        const status = await getBatchStatus(batch.id);
-        const realized = await calculateRealizedProfit(batch.id);
-        const expected = await calculateExpectedProfit(batch.id);
-        const lots = await db.inventoryLots.where('batchId').equals(batch.id).toArray();
-        const itemCount = lots.reduce((sum, l) => sum + l.quantity, 0);
-        const remainingCount = lots.reduce((sum, l) => sum + l.remainingQty, 0);
+        const batchLots = lotsByBatch.get(batch.id) || [];
+        const metrics = calculateBatchMetrics(batchLots, allocations, saleItemsMap);
 
-        const lotIds = new Set(lots.map((l) => l.id));
-        const batchAllocations = allocations.filter((a) => lotIds.has(a.lotId));
-        const discount = batchAllocations.reduce((sum, a) => {
-          const si = saleItemsMap.get(a.saleItemId);
-          const d = a.discount ?? si?.discount ?? 0;
-          return sum + (Number(a.quantity) || 0) * (Number(d) || 0);
-        }, 0);
-
-        details[batch.id] = { status, realized, expected, itemCount, remainingCount, discount };
+        details[batch.id] = {
+          status: metrics.status,
+          realized: metrics.realizedProfit,
+          expected: metrics.totalExpectedReturn,
+          expectedProfit: metrics.grossProfit,
+          grossProfit: metrics.grossProfit,
+          itemCount: metrics.totalPurchasedQty,
+          remainingCount: metrics.totalRemainingQty,
+          discount: metrics.totalDiscount,
+          totalInvestment: metrics.totalInvestment || Number(batch.totalInvestment) || 0,
+        };
       }
       setBatchDetails(details);
     }
@@ -49,32 +58,23 @@ export default function Purchases() {
   }, [batches]);
 
   const openBatchDetail = async (batch) => {
-    const lots = await db.inventoryLots.where('batchId').equals(batch.id).toArray();
-    const products = await db.products.toArray();
-    const allocations = await db.saleAllocations.toArray();
-    const saleItems = await db.saleItems.toArray();
+    const [lots, products, allocations, saleItems] = await Promise.all([
+      db.inventoryLots.where('batchId').equals(batch.id).toArray(),
+      db.products.toArray(),
+      db.saleAllocations.toArray(),
+      db.saleItems.toArray(),
+    ]);
+
+    const productsMap = new Map(products.map((p) => [p.id, p]));
     const saleItemsMap = new Map(saleItems.map((si) => [si.id, si]));
 
-    const enrichedLots = lots.map((lot) => {
-      const lotAllocations = allocations.filter((a) => a.lotId === lot.id);
-      const lotRealizedProfit = lotAllocations.reduce(
-        (sum, a) => sum + a.quantity * (a.sellingPrice - a.purchasePrice),
-        0
-      );
-      const lotDiscount = lotAllocations.reduce((sum, a) => {
-        const si = saleItemsMap.get(a.saleItemId);
-        const d = a.discount ?? si?.discount ?? 0;
-        return sum + (Number(a.quantity) || 0) * (Number(d) || 0);
-      }, 0);
+    const metrics = calculateBatchMetrics(lots, allocations, saleItemsMap);
+    const enrichedLots = metrics.lots.map((lot) => ({
+      ...lot,
+      productName: productsMap.get(lot.productId)?.name || 'Item',
+    }));
 
-      return {
-        ...lot,
-        productName: products.find((p) => p.id === lot.productId)?.name || 'Item',
-        realizedProfit: lotRealizedProfit,
-        discount: lotDiscount,
-      };
-    });
-    setBatchLots(enrichedLots);
+    setSelectedBatchMetrics({ ...metrics, lots: enrichedLots });
     setSelectedBatch(batch);
   };
 
@@ -115,7 +115,7 @@ export default function Purchases() {
             <div className="batch-card-stats">
               <div className="batch-card-stat">
                 <span className="batch-card-stat-label">{t.invested}</span>
-                <span className="batch-card-stat-value">{formatCurrency(batch.totalInvestment)}</span>
+                <span className="batch-card-stat-value">{formatCurrency(detail.totalInvestment ?? batch.totalInvestment)}</span>
               </div>
               <div className="batch-card-stat">
                 <span className="batch-card-stat-label">{t.items}</span>
@@ -123,12 +123,12 @@ export default function Purchases() {
               </div>
               <div className="batch-card-stat">
                 <span className="batch-card-stat-label">{isCompleted ? t.finalProfit : t.profit}</span>
-                <span className="batch-card-stat-value" style={{ color: 'var(--color-success)' }}>
+                <span className="batch-card-stat-value" style={{ color: (detail.realized || 0) >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
                   {formatCurrency(detail.realized || 0)}
                 </span>
                 {detail.discount > 0 && (
                   <span style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', marginTop: 2, display: 'block', fontWeight: 600 }}>
-                    {t.actualProfitShort || 'Actual'}: {formatCurrency((detail.realized || 0) + detail.discount)}
+                    {t.actualProfitShort || 'Actual'}: {formatCurrency(detail.grossProfit || ((detail.realized || 0) + detail.discount))}
                   </span>
                 )}
               </div>
@@ -143,21 +143,22 @@ export default function Purchases() {
       {/* Batch Detail Modal */}
       <Modal
         isOpen={!!selectedBatch}
-        onClose={() => setSelectedBatch(null)}
+        onClose={() => {
+          setSelectedBatch(null);
+          setSelectedBatchMetrics(null);
+        }}
         title={selectedBatch ? `${t.batch} #${selectedBatch.batchNumber}` : ''}
       >
-        {selectedBatch && (
+        {selectedBatch && selectedBatchMetrics && (
           <>
             <div style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-xl)', fontSize: 'var(--font-size-sm)' }}>
               {formatDate(selectedBatch.date, language)}
             </div>
 
             {/* Items in batch */}
-            {batchLots.map((lot) => {
-              const isMultiItem = batchLots.length > 1;
+            {selectedBatchMetrics.lots.map((lot) => {
+              const isMultiItem = selectedBatchMetrics.lots.length > 1;
               const isSoldOut = lot.remainingQty === 0;
-              const lotProfit = lot.realizedProfit ?? ((lot.sellingPrice - lot.purchasePrice) * (lot.quantity - lot.remainingQty));
-              const lotExpectedReturn = lot.remainingQty * (lot.sellingPrice - lot.purchasePrice);
 
               return (
                 <div key={lot.id} className="card" style={{ marginBottom: 'var(--space-sm)' }}>
@@ -196,12 +197,12 @@ export default function Purchases() {
                       {t.remaining}: {lot.remainingQty}/{lot.quantity}
                     </span>
                     {!isMultiItem ? (
-                      <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
-                        {formatCurrency(lotProfit)} {t.earned}
+                      <span style={{ color: lot.realizedProfit >= 0 ? 'var(--color-success)' : 'var(--color-danger)', fontWeight: 600 }}>
+                        {formatCurrency(lot.realizedProfit)} {t.earned}
                       </span>
                     ) : (
                       <span style={{ color: lot.remainingQty > 0 ? 'var(--color-text-secondary)' : 'var(--color-text-tertiary)', fontWeight: 600 }}>
-                        {t.expectedReturn || 'Expected Return'}: <span style={{ color: lot.remainingQty > 0 ? 'var(--color-text)' : 'inherit', fontWeight: 700 }}>{formatCurrency(lotExpectedReturn)}</span>
+                        {t.expectedReturn || 'Expected Return'}: <span style={{ color: lot.remainingQty > 0 ? 'var(--color-text)' : 'inherit', fontWeight: 700 }}>{formatCurrency(lot.expectedReturn)}</span>
                       </span>
                     )}
                   </div>
@@ -235,8 +236,8 @@ export default function Purchases() {
                       <span style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>
                         {t.realizedProfit}
                       </span>
-                      <span style={{ color: 'var(--color-success)', fontWeight: 700, fontSize: '0.95rem' }}>
-                        {formatCurrency(lotProfit)}
+                      <span style={{ color: lot.realizedProfit >= 0 ? 'var(--color-success)' : 'var(--color-danger)', fontWeight: 700, fontSize: '0.95rem' }}>
+                        {formatCurrency(lot.realizedProfit)}
                       </span>
                     </div>
                   )}
@@ -266,29 +267,29 @@ export default function Purchases() {
             {/* Summary */}
             <div className="summary-row">
               <span className="summary-row-label">{t.totalInvestment}</span>
-              <span className="summary-row-value">{formatCurrency(selectedBatch.totalInvestment)}</span>
+              <span className="summary-row-value">{formatCurrency(selectedBatchMetrics.totalInvestment)}</span>
             </div>
             <div className="summary-row">
               <span className="summary-row-label">{t.realizedProfit}</span>
-              <span className="summary-row-value profit">
-                {formatCurrency(batchDetails[selectedBatch.id]?.realized || 0)}
+              <span className={`summary-row-value ${selectedBatchMetrics.realizedProfit >= 0 ? 'profit' : 'loss'}`}>
+                {formatCurrency(selectedBatchMetrics.realizedProfit)}
               </span>
             </div>
-            {batchDetails[selectedBatch.id]?.discount > 0 && (
+            {selectedBatchMetrics.totalDiscount > 0 && (
               <div className="summary-row">
                 <span className="summary-row-label">
                   {t.actualProfit || 'Actual Profit (without discounts)'}
                 </span>
-                <span className="summary-row-value" style={{ color: 'var(--color-primary, #6366f1)', fontWeight: 700 }}>
-                  {formatCurrency((batchDetails[selectedBatch.id]?.realized || 0) + batchDetails[selectedBatch.id].discount)}
+                <span className="summary-row-value" style={{ color: 'var(--color-primary, #5B1EE6)', fontWeight: 700 }}>
+                  {formatCurrency(selectedBatchMetrics.grossProfit)}
                 </span>
               </div>
             )}
-            {batchDetails[selectedBatch.id]?.status !== 'completed' && (
+            {selectedBatchMetrics.status !== 'completed' && (
               <div className="summary-row">
-                <span className="summary-row-label">{t.remainingProfit}</span>
-                <span className="summary-row-value" style={{ color: 'var(--color-text-secondary)' }}>
-                  {formatCurrency(batchDetails[selectedBatch.id]?.expected || 0)}
+                <span className="summary-row-label">{t.expectedReturn || 'Expected Return'}</span>
+                <span className="summary-row-value" style={{ color: 'var(--color-text-secondary)', fontWeight: 700 }}>
+                  {formatCurrency(selectedBatchMetrics.totalExpectedReturn)}
                 </span>
               </div>
             )}

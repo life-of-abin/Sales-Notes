@@ -1,20 +1,33 @@
 import db from '../db/database';
-import { calculateRealizedProfit, calculateExpectedProfit, getBatchStatus } from './profitService';
+import { calculateBatchMetrics, calculatePeriodFinancials, roundCurrency } from './calculationService';
 import { getShortDate } from '../utils/formatDate';
 
 /**
  * Get batch profit data for the bar chart.
- * Returns an array of { batchId, batchNumber, date, label, realizedProfit, expectedProfit, status, totalInvestment }
+ * Returns an array of { id, batchId, batchNumber, date, label, realizedProfit, expectedProfit, expectedReturn, grossProfit, totalInvestment, status }
  */
 export async function getBatchProfitData() {
   try {
-    const batches = await db.purchaseBatches.orderBy('date').toArray();
+    const [batches, lots, allocations, saleItems] = await Promise.all([
+      db.purchaseBatches.orderBy('date').toArray(),
+      db.inventoryLots.toArray(),
+      db.saleAllocations.toArray(),
+      db.saleItems.toArray(),
+    ]);
+
+    const saleItemsMap = new Map(saleItems.map((si) => [si.id, si]));
+    const lotsByBatch = new Map();
+    for (const lot of lots) {
+      if (!lotsByBatch.has(lot.batchId)) {
+        lotsByBatch.set(lot.batchId, []);
+      }
+      lotsByBatch.get(lot.batchId).push(lot);
+    }
 
     const results = [];
     for (const batch of batches) {
-      const realized = await calculateRealizedProfit(batch.id);
-      const expected = await calculateExpectedProfit(batch.id);
-      const status = await getBatchStatus(batch.id);
+      const batchLots = lotsByBatch.get(batch.id) || [];
+      const metrics = calculateBatchMetrics(batchLots, allocations, saleItemsMap);
 
       results.push({
         id: batch.id,
@@ -22,11 +35,13 @@ export async function getBatchProfitData() {
         batchNumber: batch.batchNumber,
         date: batch.date,
         label: `#${batch.batchNumber} (${getShortDate(batch.date)})`,
-        realizedProfit: Number(realized) || 0,
-        expectedProfit: Number(expected) || 0,
-        totalProfit: (Number(realized) || 0) + (Number(expected) || 0),
-        status,
-        totalInvestment: Number(batch.totalInvestment) || 0,
+        realizedProfit: metrics.realizedProfit,
+        expectedReturn: metrics.totalExpectedReturn,
+        expectedProfit: metrics.totalExpectedReturn, // backward compatibility
+        grossProfit: metrics.grossProfit, // actual profit without discounts
+        totalProfit: metrics.realizedProfit,
+        status: metrics.status,
+        totalInvestment: metrics.totalInvestment || Number(batch.totalInvestment) || 0,
       });
     }
 
@@ -38,7 +53,7 @@ export async function getBatchProfitData() {
 }
 
 /**
- * Get summary by flexible timeframe: 'today' | 'week' | 'month' | 'all'
+ * Get summary by flexible timeframe: 'today' | 'week' | 'month' | 'year' | 'all'
  */
 export async function getPeriodicSummary(timeframe = 'month', targetDate = new Date()) {
   try {
@@ -67,43 +82,38 @@ export async function getPeriodicSummary(timeframe = 'month', targetDate = new D
       endDate = new Date(8640000000000000);
     }
 
-    // Sales
-    const sales = await db.sales.toArray();
+    const [sales, expenses, lots] = await Promise.all([
+      db.sales.toArray(),
+      db.expenses.toArray(),
+      db.inventoryLots.toArray(),
+    ]);
+
     const filteredSales = sales.filter((s) => {
       const d = new Date(s.date);
       return d >= startDate && d <= endDate;
     });
-    const totalSales = filteredSales.reduce((sum, s) => sum + (Number(s.totalAmount) || 0), 0);
-    const totalProfit = filteredSales.reduce((sum, s) => sum + (Number(s.totalProfit) || 0), 0);
-    const salesCount = filteredSales.length;
 
-    // Expenses
-    const expenses = await db.expenses.toArray();
     const filteredExpenses = expenses.filter((e) => {
       const d = new Date(e.date);
       return d >= startDate && d <= endDate;
     });
-    const totalExpenses = filteredExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
-    // Current Stock Value
-    const lots = await db.inventoryLots.toArray();
-    const stockValue = lots.reduce(
-      (sum, l) => sum + ((Number(l.remainingQty) || 0) * (Number(l.sellingPrice) || 0)),
-      0
-    );
-    const stockCost = lots.reduce(
-      (sum, l) => sum + ((Number(l.remainingQty) || 0) * (Number(l.purchasePrice) || 0)),
-      0
-    );
+    const financials = calculatePeriodFinancials({
+      sales: filteredSales,
+      expenses: filteredExpenses,
+      lots,
+    });
 
     return {
-      totalSales,
-      totalProfit,
-      totalExpenses,
-      netProfit: totalProfit - totalExpenses,
-      salesCount,
-      stockValue,
-      stockCost,
+      totalSales: financials.totalSales,
+      totalProfit: financials.totalRealizedProfit,
+      totalGrossProfit: financials.totalGrossProfit,
+      totalDiscountGiven: financials.totalDiscountGiven,
+      totalExpenses: financials.totalExpenses,
+      netProfit: financials.netProfit,
+      salesCount: financials.salesCount,
+      stockValue: financials.stockValue,
+      stockCost: financials.stockCost,
       timeframe,
       startDate,
       endDate,
@@ -113,6 +123,8 @@ export async function getPeriodicSummary(timeframe = 'month', targetDate = new D
     return {
       totalSales: 0,
       totalProfit: 0,
+      totalGrossProfit: 0,
+      totalDiscountGiven: 0,
       totalExpenses: 0,
       netProfit: 0,
       salesCount: 0,
@@ -155,8 +167,10 @@ export async function getProductPerformance() {
           totalRevenue: 0,
         };
       }
-      stats[item.productId].totalQty += Number(item.quantity) || 0;
-      stats[item.productId].totalRevenue += (Number(item.quantity) || 0) * (Number(item.sellingPrice) || 0);
+      const qty = Number(item.quantity) || 0;
+      const price = Number(item.sellingPrice) || 0;
+      stats[item.productId].totalQty += qty;
+      stats[item.productId].totalRevenue += roundCurrency(qty * price);
     }
 
     return Object.values(stats).sort((a, b) => b.totalRevenue - a.totalRevenue);

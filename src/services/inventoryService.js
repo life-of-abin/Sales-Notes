@@ -1,4 +1,5 @@
 import db from '../db/database';
+import { roundCurrency } from './calculationService';
 
 /**
  * FIFO allocation: deducts `quantity` of a given product from the oldest lots first.
@@ -96,14 +97,18 @@ export async function getAllProductSummaries() {
 
   return products.map((product) => {
     const productLots = lots.filter((l) => l.productId === product.id);
-    const totalQty = productLots.reduce((sum, l) => sum + l.remainingQty, 0);
-    const totalValue = productLots.reduce(
-      (sum, l) => sum + l.remainingQty * l.sellingPrice,
-      0
+    const totalQty = productLots.reduce((sum, l) => sum + (Number(l.remainingQty) || 0), 0);
+    const totalValue = roundCurrency(
+      productLots.reduce(
+        (sum, l) => sum + (Number(l.remainingQty) || 0) * (Number(l.sellingPrice) || 0),
+        0
+      )
     );
-    const totalCost = productLots.reduce(
-      (sum, l) => sum + l.remainingQty * l.purchasePrice,
-      0
+    const totalCost = roundCurrency(
+      productLots.reduce(
+        (sum, l) => sum + (Number(l.remainingQty) || 0) * (Number(l.purchasePrice) || 0),
+        0
+      )
     );
 
     return {
@@ -112,7 +117,7 @@ export async function getAllProductSummaries() {
       totalValue,
       totalCost,
     };
-  }).filter(p => p.totalQty > 0 || true); // keep products even if 0 stock
+  });
 }
 
 /**
@@ -120,13 +125,17 @@ export async function getAllProductSummaries() {
  */
 export async function getTotalStockValue() {
   const lots = await db.inventoryLots.toArray();
-  const activeValue = lots.reduce(
-    (sum, l) => sum + l.remainingQty * l.sellingPrice,
-    0
+  const activeValue = roundCurrency(
+    lots.reduce(
+      (sum, l) => sum + (Number(l.remainingQty) || 0) * (Number(l.sellingPrice) || 0),
+      0
+    )
   );
-  const activeCost = lots.reduce(
-    (sum, l) => sum + l.remainingQty * l.purchasePrice,
-    0
+  const activeCost = roundCurrency(
+    lots.reduce(
+      (sum, l) => sum + (Number(l.remainingQty) || 0) * (Number(l.purchasePrice) || 0),
+      0
+    )
   );
   return { stockValue: activeValue, stockCost: activeCost };
 }

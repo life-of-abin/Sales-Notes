@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useBusiness } from '../hooks/useBusiness';
 import { getProductStock } from '../services/inventoryService';
+import { roundCurrency } from '../services/calculationService';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getProductEmoji, getProductColor } from '../utils/constants';
 import { formatProductDisplayName } from '../utils/transliterate';
@@ -31,9 +32,9 @@ export default function ProductDetail() {
     );
   }
 
-  const totalInvested = lots.reduce((sum, l) => sum + l.remainingQty * l.purchasePrice, 0);
-  const potentialSales = lots.reduce((sum, l) => sum + l.remainingQty * l.sellingPrice, 0);
-  const expectedProfit = potentialSales - totalInvested;
+  const totalInvested = roundCurrency(lots.reduce((sum, l) => sum + (Number(l.remainingQty) || 0) * (Number(l.purchasePrice) || 0), 0));
+  const potentialSales = roundCurrency(lots.reduce((sum, l) => sum + (Number(l.remainingQty) || 0) * (Number(l.sellingPrice) || 0), 0));
+  const expectedProfit = roundCurrency(potentialSales - totalInvested);
 
   // Group lots by selling price
   const priceGroups = {};
