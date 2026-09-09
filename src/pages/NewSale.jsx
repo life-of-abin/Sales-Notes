@@ -28,7 +28,6 @@ export default function NewSale() {
   const [customerName, setCustomerName] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
   const [saving, setSaving] = useState(false);
-  const [belowCost, setBelowCost] = useState(false);
   const [showLossModal, setShowLossModal] = useState(false);
 
   const activeProducts = productSummaries.filter((p) => p.totalQty > 0);
@@ -51,6 +50,7 @@ export default function NewSale() {
     if (productLots.length > 0) {
       setSelectedLotId(productLots[0].id);
       setSellingPrice(String(productLots[0].sellingPrice));
+      setDiscount('');
       setQuantity(1);
     }
     setStep(1);
@@ -63,23 +63,20 @@ export default function NewSale() {
   };
 
   const activeLot = lots.find((l) => l.id === selectedLotId) || (lots.length > 0 ? lots[0] : null);
-  const finalPrice = (Number(sellingPrice) || 0) - (Number(discount) || 0);
+  const numSellingPrice = Number(sellingPrice) || 0;
+  const numDiscount = Number(discount) || 0;
+  const finalPrice = numSellingPrice - numDiscount;
   const totalAmount = quantity * finalPrice;
   const maxQty = activeLot ? activeLot.remainingQty : (selectedProduct?.totalQty || 0);
-  const purchaseCost = activeLot ? activeLot.purchasePrice : 0;
-  const maxDiscount = Math.max(0, (Number(sellingPrice) || 0) - purchaseCost);
+  const purchaseCost = activeLot ? Number(activeLot.purchasePrice) || 0 : 0;
+  const maxDiscount = Math.max(0, numSellingPrice - purchaseCost);
 
-  // Check below cost against the selected variety's cost
-  useEffect(() => {
-    if (activeLot && finalPrice > 0) {
-      setBelowCost(finalPrice < activeLot.purchasePrice);
-    } else {
-      setBelowCost(false);
-    }
-  }, [finalPrice, activeLot]);
+  // Synchronous instant over-discount & loss detection
+  const isOverDiscount = numSellingPrice > 0 && numDiscount > maxDiscount;
+  const isBelowCost = numSellingPrice > 0 && (finalPrice < purchaseCost || isOverDiscount || finalPrice <= 0);
 
   const handleSale = async () => {
-    if (belowCost) {
+    if (isBelowCost || isOverDiscount || finalPrice <= 0) {
       setShowLossModal(true);
       return;
     }
@@ -109,8 +106,8 @@ export default function NewSale() {
       await recordSale(
         selectedProduct.id,
         quantity,
-        Number(sellingPrice) || 0,
-        Number(discount) || 0,
+        numSellingPrice,
+        numDiscount,
         customerId,
         paid,
         activeLot?.id || null
@@ -297,15 +294,39 @@ export default function NewSale() {
           onChange={setDiscount}
           id="input-discount"
         />
-        {finalPrice > 0 && (
-          <div className="summary-row">
+
+        {numSellingPrice > 0 && !isBelowCost && (
+          <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)', marginTop: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>{(t.maxDiscountAllowed || 'Max allowed discount: {maxDiscount}').replace('{maxDiscount}', formatCurrency(maxDiscount))}</span>
+            {maxDiscount > 0 && numDiscount === 0 && (
+              <button
+                type="button"
+                onClick={() => setDiscount(String(maxDiscount))}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-primary)',
+                  fontWeight: 700,
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+              >
+                {language === 'ta' ? `அதிகபட்சம் (₹${maxDiscount})` : `Max (₹${maxDiscount})`}
+              </button>
+            )}
+          </div>
+        )}
+
+        {finalPrice > 0 && !isBelowCost && (
+          <div className="summary-row" style={{ marginTop: 'var(--space-sm)' }}>
             <span className="summary-row-label">{t.finalPrice}</span>
             <span className="summary-row-value">{formatCurrency(finalPrice)}</span>
           </div>
         )}
 
-        {/* Below cost warning banner */}
-        {belowCost && (
+        {/* Below cost / Over discount warning banner */}
+        {isBelowCost && (
           <div
             className="warning-banner animate-pop"
             style={{
@@ -316,19 +337,42 @@ export default function NewSale() {
               borderRadius: 'var(--radius-lg)',
               padding: '12px 14px',
               display: 'flex',
-              alignItems: 'flex-start',
+              alignItems: 'center',
+              justifyContent: 'space-between',
               gap: '10px',
             }}
           >
-            <ShieldAlert size={20} color="#DC2626" style={{ flexShrink: 0, marginTop: 1 }} />
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 'var(--font-size-sm)', color: '#DC2626' }}>
-                {(t.belowCostError || 'Selling at a loss is not allowed! Purchase cost is {cost}').replace('{cost}', formatCurrency(purchaseCost))}
-              </div>
-              <div style={{ fontSize: 'var(--font-size-xs)', marginTop: 4, color: '#991B1B', fontWeight: 600 }}>
-                {(t.maxDiscountAllowed || 'Max allowed discount: {maxDiscount}').replace('{maxDiscount}', formatCurrency(maxDiscount))}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+              <ShieldAlert size={20} color="#DC2626" style={{ flexShrink: 0, marginTop: 1 }} />
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 'var(--font-size-sm)', color: '#DC2626' }}>
+                  {(t.belowCostError || 'Selling at a loss is not allowed! Purchase cost is {cost}').replace('{cost}', formatCurrency(purchaseCost))}
+                </div>
+                <div style={{ fontSize: 'var(--font-size-xs)', marginTop: 4, color: '#991B1B', fontWeight: 600 }}>
+                  {(t.maxDiscountAllowed || 'Max allowed discount: {maxDiscount}').replace('{maxDiscount}', formatCurrency(maxDiscount))}
+                </div>
               </div>
             </div>
+            {maxDiscount >= 0 && (
+              <button
+                type="button"
+                onClick={() => setDiscount(String(maxDiscount))}
+                style={{
+                  flexShrink: 0,
+                  background: '#DC2626',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '6px 12px',
+                  fontSize: 'var(--font-size-xs)',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {language === 'ta' ? `₹${maxDiscount} மாற்று` : `Set ₹${maxDiscount}`}
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -383,7 +427,7 @@ export default function NewSale() {
       )}
 
       {/* Total */}
-      {totalAmount > 0 && (
+      {totalAmount > 0 && !isBelowCost && (
         <div className="card" style={{ marginBottom: 'var(--space-xl)', background: 'var(--color-success-bg)' }}>
           <div className="summary-row">
             <span className="summary-row-label" style={{ fontWeight: 600 }}>{t.total}</span>
@@ -396,15 +440,15 @@ export default function NewSale() {
 
       {/* Confirm Sale Button */}
       <button
-        className={`btn ${belowCost ? 'btn--danger' : 'btn--success'} btn--lg`}
+        className={`btn ${isBelowCost ? 'btn--danger' : 'btn--success'} btn--lg`}
         onClick={handleSale}
-        disabled={saving || quantity > maxQty || finalPrice <= 0 || belowCost}
+        disabled={saving || quantity > maxQty || finalPrice <= 0 || isBelowCost}
         id="btn-confirm-sale"
-        style={belowCost ? { opacity: 0.65, cursor: 'not-allowed' } : {}}
+        style={isBelowCost ? { opacity: 0.65, cursor: 'not-allowed' } : {}}
       >
         {saving
           ? t.recording
-          : belowCost
+          : isBelowCost
           ? `🛑 ${t.cannotSellInLoss || 'Cannot Sell at a Loss'}`
           : t.confirmSale}
       </button>
@@ -420,18 +464,33 @@ export default function NewSale() {
           <div style={{ fontSize: 'var(--font-size-md)', fontWeight: 800, color: 'var(--color-danger)', marginBottom: 'var(--space-sm)' }}>
             {t.lossNotAllowedTitle || 'Selling in Loss Not Allowed'}
           </div>
-          <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', lineHeight: 1.6, marginBottom: 'var(--space-xl)' }}>
+          <div style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', lineHeight: 1.6, marginBottom: 'var(--space-md)' }}>
             {(t.lossNotAllowedDesc || 'Discount is too high! The final selling price ({finalPrice}) is lower than the wholesale purchase cost ({costPrice}). Selling in loss is not permitted.')
-              .replace('{finalPrice}', formatCurrency(finalPrice))
+              .replace('{finalPrice}', formatCurrency(Math.max(0, finalPrice)))
               .replace('{costPrice}', formatCurrency(purchaseCost))}
           </div>
-          <button
-            className="btn btn--primary"
-            onClick={() => setShowLossModal(false)}
-            style={{ width: '100%' }}
-          >
-            {t.confirm || 'OK'}
-          </button>
+          <div style={{ background: 'var(--color-surface-2)', padding: '10px 14px', borderRadius: 'var(--radius-md)', marginBottom: 'var(--space-lg)', fontSize: 'var(--font-size-sm)', fontWeight: 700, color: 'var(--color-primary)' }}>
+            {(t.maxDiscountAllowed || 'Max allowed discount: {maxDiscount}').replace('{maxDiscount}', formatCurrency(maxDiscount))}
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              className="btn btn--outline"
+              onClick={() => setShowLossModal(false)}
+              style={{ flex: 1 }}
+            >
+              {t.cancel || 'Cancel'}
+            </button>
+            <button
+              className="btn btn--primary"
+              onClick={() => {
+                setDiscount(String(maxDiscount));
+                setShowLossModal(false);
+              }}
+              style={{ flex: 1 }}
+            >
+              {language === 'ta' ? `₹${maxDiscount} மாற்று` : `Set ₹${maxDiscount}`}
+            </button>
+          </div>
         </div>
       </Modal>
     </div>
