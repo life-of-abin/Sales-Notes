@@ -2,6 +2,7 @@ import Dexie from 'dexie';
 
 const db = new Dexie('MyDukaanDB');
 
+// Version 1: Initial schema
 db.version(1).stores({
   products: 'id, name, category, createdAt',
   purchaseBatches: 'id, batchNumber, date',
@@ -12,6 +13,11 @@ db.version(1).stores({
   expenses: 'id, date, type',
   customers: 'id, name',
   customerPayments: 'id, customerId, saleId, date',
+  settings: 'id',
+});
+
+// Version 2: Explicitly ensure settings table exists for existing client databases
+db.version(2).stores({
   settings: 'id',
 });
 
