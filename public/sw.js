@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sales-notes-v1';
+const CACHE_NAME = 'sales-notes-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
