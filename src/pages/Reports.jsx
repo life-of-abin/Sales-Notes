@@ -266,6 +266,19 @@ export default function Reports() {
     setSelectedBatchId(null);
   }, [timeframe]);
 
+  // Click anywhere outside the bars to normalize back to normal (remove black border and hide tooltip)
+  useEffect(() => {
+    if (selectedSalesGroup === null && selectedBatchId === null) return;
+    const handleOutsideClick = () => {
+      setSelectedSalesGroup(null);
+      setSelectedBatchId(null);
+    };
+    window.addEventListener('click', handleOutsideClick);
+    return () => {
+      window.removeEventListener('click', handleOutsideClick);
+    };
+  }, [selectedSalesGroup, selectedBatchId]);
+
   useEffect(() => {
     let isMounted = true;
     async function load() {
@@ -700,7 +713,10 @@ export default function Reports() {
                                     style={{ cursor: 'pointer' }}
                                     onClick={(e) => {
                                       if (e && e.stopPropagation) e.stopPropagation();
-                                      if (payload?.label) setSelectedSalesGroup(payload.label);
+                                      if (payload?.label) {
+                                        setSelectedSalesGroup((prev) => (prev === payload.label ? null : payload.label));
+                                        setSelectedBatchId(null);
+                                      }
                                     }}
                                   />
                                 );
@@ -729,7 +745,10 @@ export default function Reports() {
                                     style={{ cursor: 'pointer' }}
                                     onClick={(e) => {
                                       if (e && e.stopPropagation) e.stopPropagation();
-                                      if (payload?.label) setSelectedSalesGroup(payload.label);
+                                      if (payload?.label) {
+                                        setSelectedSalesGroup((prev) => (prev === payload.label ? null : payload.label));
+                                        setSelectedBatchId(null);
+                                      }
                                     }}
                                   />
                                 );
@@ -819,15 +838,15 @@ export default function Reports() {
                       >
                         {/* Persistent Synchronized Tooltip for Batch Profit */}
                         {(() => {
-                          if (!selectedBatchId) return null;
-                          const activeBatch = batchData.find((b) => b.id === selectedBatchId);
+                          if (selectedBatchId === null || selectedBatchId === undefined) return null;
+                          const activeBatch = batchData.find((b) => (b.id ?? b.batchId) === selectedBatchId);
                           if (!activeBatch) return null;
-                          const idx = batchData.findIndex((b) => b.id === selectedBatchId);
+                          const idx = batchData.findIndex((b) => (b.id ?? b.batchId) === selectedBatchId);
                           const total = batchData.length;
                           const pct = total > 0 ? ((idx + 0.5) / total) * 100 : 50;
                           const posStyle =
                             pct < 20
-                              ? { left: `${Math.max(4, pct)}%`, transform: 'translateX(0)' }
+                               ? { left: `${Math.max(4, pct)}%`, transform: 'translateX(0)' }
                               : pct > 80
                               ? { left: `${Math.min(96, pct)}%`, transform: 'translateX(-100%)' }
                               : { left: `${pct}%`, transform: 'translateX(-50%)' };
@@ -907,7 +926,8 @@ export default function Reports() {
                               shape={(props) => {
                                 const { x, y, width, height, payload } = props;
                                 if (!height || height <= 0 || !width || width <= 0) return null;
-                                const isSelected = selectedBatchId === payload?.id;
+                                const itemKey = payload?.id ?? payload?.batchId;
+                                const isSelected = selectedBatchId !== null && selectedBatchId !== undefined && selectedBatchId === itemKey;
                                 const r = Math.min(6, Math.max(0, width / 2), Math.max(0, height));
                                 const d = `M ${x},${y + height} L ${x},${y + r} Q ${x},${y} ${x + r},${y} L ${x + width - r},${y} Q ${x + width},${y} ${x + width},${y + r} L ${x + width},${y + height} Z`;
                                 const fill = payload?.status === 'completed' ? C.completed : C.batch;
@@ -922,7 +942,11 @@ export default function Reports() {
                                     style={{ cursor: 'pointer' }}
                                     onClick={(e) => {
                                       if (e && e.stopPropagation) e.stopPropagation();
-                                      if (payload?.id !== undefined) setSelectedBatchId(payload.id);
+                                      const key = payload?.id ?? payload?.batchId;
+                                      if (key !== undefined && key !== null) {
+                                        setSelectedBatchId((prev) => (prev === key ? null : key));
+                                        setSelectedSalesGroup(null);
+                                      }
                                     }}
                                   />
                                 );

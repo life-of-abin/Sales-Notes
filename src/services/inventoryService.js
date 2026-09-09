@@ -40,7 +40,35 @@ export async function allocateFIFO(productId, quantity) {
 }
 
 /**
- * Get total available stock for a single product.
+ * Direct allocation: deducts `quantity` from a specific inventory lot chosen by the user.
+ * Returns an array of allocation objects: [{ lotId, quantity, purchasePrice, sellingPrice }]
+ */
+export async function allocateLot(lotId, quantity) {
+  const lot = await db.inventoryLots.get(lotId);
+  if (!lot) {
+    throw new Error('Inventory lot not found.');
+  }
+
+  if (lot.remainingQty < quantity) {
+    throw new Error(`Not enough stock in this variety. Only ${lot.remainingQty} available.`);
+  }
+
+  await db.inventoryLots.update(lot.id, {
+    remainingQty: lot.remainingQty - quantity,
+  });
+
+  return [
+    {
+      lotId: lot.id,
+      quantity,
+      purchasePrice: lot.purchasePrice,
+      sellingPrice: lot.sellingPrice,
+    },
+  ];
+}
+
+/**
+ * Get total available stock lots for a single product with batch information.
  */
 export async function getProductStock(productId) {
   const lots = await db.inventoryLots
@@ -49,7 +77,14 @@ export async function getProductStock(productId) {
     .filter((lot) => lot.remainingQty > 0)
     .sortBy('createdAt');
 
-  return lots;
+  const batches = await db.purchaseBatches.toArray();
+  const batchMap = new Map(batches.map((b) => [b.id, b]));
+
+  return lots.map((lot) => ({
+    ...lot,
+    batch: batchMap.get(lot.batchId) || null,
+    batchNumber: batchMap.get(lot.batchId)?.batchNumber ?? '—',
+  }));
 }
 
 /**

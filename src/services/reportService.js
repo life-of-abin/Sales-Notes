@@ -17,6 +17,7 @@ export async function getBatchProfitData() {
       const status = await getBatchStatus(batch.id);
 
       results.push({
+        id: batch.id,
         batchId: batch.id,
         batchNumber: batch.batchNumber,
         date: batch.date,

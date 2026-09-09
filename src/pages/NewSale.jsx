@@ -20,6 +20,7 @@ export default function NewSale() {
   const [step, setStep] = useState(preselectedProductId ? 1 : 0); // 0 = pick product, 1 = details
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [lots, setLots] = useState([]);
+  const [selectedLotId, setSelectedLotId] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [sellingPrice, setSellingPrice] = useState('');
   const [discount, setDiscount] = useState('');
@@ -47,28 +48,35 @@ export default function NewSale() {
     setSelectedProduct(product);
     const productLots = await getProductStock(product.id);
     setLots(productLots);
-    // Set default selling price from the first lot
     if (productLots.length > 0) {
+      setSelectedLotId(productLots[0].id);
       setSellingPrice(String(productLots[0].sellingPrice));
+      setQuantity(1);
     }
     setStep(1);
   };
 
+  const handleSelectLot = (lot) => {
+    setSelectedLotId(lot.id);
+    setSellingPrice(String(lot.sellingPrice));
+    setQuantity((prev) => Math.min(prev, lot.remainingQty) || 1);
+  };
+
+  const activeLot = lots.find((l) => l.id === selectedLotId) || (lots.length > 0 ? lots[0] : null);
   const finalPrice = (Number(sellingPrice) || 0) - (Number(discount) || 0);
   const totalAmount = quantity * finalPrice;
-  const maxQty = selectedProduct?.totalQty || 0;
-  const purchaseCost = lots.length > 0 ? lots[0].purchasePrice : 0;
+  const maxQty = activeLot ? activeLot.remainingQty : (selectedProduct?.totalQty || 0);
+  const purchaseCost = activeLot ? activeLot.purchasePrice : 0;
   const maxDiscount = Math.max(0, (Number(sellingPrice) || 0) - purchaseCost);
 
-  // Check below cost
+  // Check below cost against the selected variety's cost
   useEffect(() => {
-    if (lots.length > 0 && finalPrice > 0) {
-      const firstLotCost = lots[0].purchasePrice;
-      setBelowCost(finalPrice < firstLotCost);
+    if (activeLot && finalPrice > 0) {
+      setBelowCost(finalPrice < activeLot.purchasePrice);
     } else {
       setBelowCost(false);
     }
-  }, [finalPrice, lots]);
+  }, [finalPrice, activeLot]);
 
   const handleSale = async () => {
     if (belowCost) {
@@ -104,7 +112,8 @@ export default function NewSale() {
         Number(sellingPrice) || 0,
         Number(discount) || 0,
         customerId,
-        paid
+        paid,
+        activeLot?.id || null
       );
       navigate('/sales');
     } catch (err) {
@@ -160,7 +169,7 @@ export default function NewSale() {
       <PageHeader title={formatProductDisplayName(selectedProduct?.name, language) || t.sell} showBack />
 
       {/* Product Info */}
-      <div className="card" style={{ textAlign: 'center', marginBottom: 'var(--space-xl)' }}>
+      <div className="card" style={{ textAlign: 'center', marginBottom: 'var(--space-lg)' }}>
         <div style={{ fontSize: 48, marginBottom: 'var(--space-sm)' }}>
           {getProductEmoji(selectedProduct?.name)}
         </div>
@@ -168,9 +177,95 @@ export default function NewSale() {
           {formatProductDisplayName(selectedProduct?.name, language)}
         </div>
         <div style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-          {t.available}: {maxQty} {t.pieces}
+          {t.available}: <span style={{ fontWeight: 700, color: 'var(--color-text)' }}>{maxQty} {t.pieces}</span>
+          {lots.length > 1 && (
+            <span style={{ marginLeft: 6, color: 'var(--color-primary)', fontWeight: 600 }}>
+              · {lots.length} {language === 'ta' ? 'வகைகள்' : 'varieties'}
+            </span>
+          )}
         </div>
       </div>
+
+      {/* Price Variety / Batch Selector */}
+      {lots.length > 1 && (
+        <div className="card" style={{ marginBottom: 'var(--space-lg)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-md)' }}>
+            <label className="form-label" style={{ marginBottom: 0, fontWeight: 700 }}>
+              🏷️ {t.chooseVariety || 'Choose Price Variety / Batch'}
+            </label>
+            <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-primary)', fontWeight: 700 }}>
+              {lots.length} {language === 'ta' ? 'வகைகள் உள்ளன' : 'Varieties'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {lots.map((lot, idx) => {
+              const isSelected = activeLot?.id === lot.id;
+              return (
+                <div
+                  key={lot.id}
+                  onClick={() => handleSelectLot(lot)}
+                  id={`variety-lot-${lot.id}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-lg)',
+                    border: isSelected
+                      ? '2px solid var(--color-primary, #4f46e5)'
+                      : '1.5px solid var(--color-border, #e2e8f0)',
+                    background: isSelected
+                      ? 'rgba(79, 70, 229, 0.08)'
+                      : 'var(--color-surface, #ffffff)',
+                    cursor: 'pointer',
+                    boxShadow: isSelected ? '0 2px 8px rgba(79, 70, 229, 0.15)' : 'none',
+                    transition: 'all 0.18s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: '50%',
+                        border: isSelected ? '6px solid var(--color-primary, #4f46e5)' : '2px solid var(--color-border, #cbd5e1)',
+                        background: '#ffffff',
+                        flexShrink: 0,
+                        transition: 'all 0.15s ease',
+                      }}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 'var(--font-size-sm)', color: 'var(--color-text)' }}>
+                        {t.batch || 'Batch'} #{lot.batchNumber || (idx + 1)} · {formatCurrency(lot.sellingPrice)}
+                      </div>
+                      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                        {t.costPriceLabel || 'Cost'}: <span style={{ fontWeight: 600 }}>{formatCurrency(lot.purchasePrice)}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'right' }}>
+                    <div
+                      style={{
+                        fontSize: 'var(--font-size-xs)',
+                        fontWeight: 700,
+                        color: isSelected ? 'var(--color-primary, #4f46e5)' : 'var(--color-text-secondary)',
+                        background: isSelected ? 'rgba(79, 70, 229, 0.14)' : 'var(--color-surface-2, #f1f5f9)',
+                        padding: '4px 10px',
+                        borderRadius: 'var(--radius-full)',
+                        display: 'inline-block',
+                      }}
+                    >
+                      📦 {lot.remainingQty} {t.pieces || 'pcs'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Quantity */}
       <div className="card" style={{ marginBottom: 'var(--space-lg)', textAlign: 'center' }}>

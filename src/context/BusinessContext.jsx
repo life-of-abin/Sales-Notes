@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect, useCallback } from 'react';
 import db from '../db/database';
-import { allocateFIFO, getAllProductSummaries, getTotalStockValue } from '../services/inventoryService';
+import { allocateFIFO, allocateLot, getAllProductSummaries, getTotalStockValue } from '../services/inventoryService';
 import { isToday } from '../utils/formatDate';
 import { generateId } from '../utils/generateId';
 import { formatCustomerDisplayName } from '../utils/transliterate';
@@ -158,12 +158,14 @@ export function BusinessProvider({ children }) {
   }, [refreshData, showToast, t]);
 
   // ---- RECORD SALE ----
-  const recordSale = useCallback(async (productId, quantity, sellingPrice, discount = 0, customerId = null, paidAmount = null) => {
+  const recordSale = useCallback(async (productId, quantity, sellingPrice, discount = 0, customerId = null, paidAmount = null, lotId = null) => {
     const finalPrice = sellingPrice - discount;
     const totalAmount = quantity * finalPrice;
 
-    // FIFO allocation
-    const allocations = await allocateFIFO(productId, quantity);
+    // Direct Lot or FIFO allocation
+    const allocations = lotId
+      ? await allocateLot(lotId, quantity)
+      : await allocateFIFO(productId, quantity);
 
     // Calculate profit
     let totalProfit = 0;

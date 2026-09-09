@@ -131,6 +131,7 @@ export default function Purchases() {
               const isMultiItem = batchLots.length > 1;
               const isSoldOut = lot.remainingQty === 0;
               const lotProfit = lot.realizedProfit ?? ((lot.sellingPrice - lot.purchasePrice) * (lot.quantity - lot.remainingQty));
+              const lotExpectedReturn = lot.remainingQty * (lot.sellingPrice - lot.purchasePrice);
 
               return (
                 <div key={lot.id} className="card" style={{ marginBottom: 'var(--space-sm)' }}>
@@ -164,13 +165,17 @@ export default function Purchases() {
                     <span>{t.buyLabel}: {formatCurrency(lot.purchasePrice)}</span>
                     <span>{t.sellLabel}: {formatCurrency(lot.sellingPrice)}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)', marginTop: 4 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 'var(--font-size-sm)', marginTop: 4 }}>
                     <span style={{ color: 'var(--color-text-tertiary)' }}>
                       {t.remaining}: {lot.remainingQty}/{lot.quantity}
                     </span>
-                    {!isMultiItem && (
+                    {!isMultiItem ? (
                       <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
                         {formatCurrency(lotProfit)} {t.earned}
+                      </span>
+                    ) : (
+                      <span style={{ color: lot.remainingQty > 0 ? 'var(--color-text-secondary)' : 'var(--color-text-tertiary)', fontWeight: 600 }}>
+                        {t.expectedReturn || 'Expected Return'}: <span style={{ color: lot.remainingQty > 0 ? 'var(--color-text)' : 'inherit', fontWeight: 700 }}>{formatCurrency(lotExpectedReturn)}</span>
                       </span>
                     )}
                   </div>
