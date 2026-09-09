@@ -2246,5 +2246,56 @@ ul, ol {
   animation: fadeIn 0.8s 1.4s both ease-out;
 }
 
+/* ============================================================
+   RECHARTS CLEAN TOUCH & ZERO-BOX RESET
+   ============================================================ */
+.recharts-wrapper,
+.recharts-surface,
+.recharts-cartesian-grid,
+.recharts-bar-rectangle,
+.recharts-layer,
+.recharts-tooltip-wrapper,
+.recharts-default-tooltip,
+.recharts-bar,
+.recharts-bar-rectangles,
+.recharts-cartesian-axis,
+.recharts-cartesian-axis-line,
+.recharts-cartesian-axis-tick-line {
+  outline: none !important;
+  border: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  user-select: none !important;
+}
+
+.recharts-wrapper:focus,
+.recharts-surface:focus,
+svg:focus,
+g:focus,
+path:focus,
+rect:focus {
+  outline: none !important;
+  border: none !important;
+}
+
+.recharts-tooltip-cursor,
+rect.recharts-tooltip-cursor,
+.recharts-rectangle.recharts-tooltip-cursor {
+  display: none !important;
+  fill: transparent !important;
+  stroke: none !important;
+  stroke-width: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.chart-y-axis-fixed {
+  flex-shrink: 0;
+  user-select: none;
+  z-index: 5;
+  background: var(--color-surface);
+  border: none !important;
+  outline: none !important;
+}
+
 
 

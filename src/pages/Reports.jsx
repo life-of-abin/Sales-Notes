@@ -24,6 +24,41 @@ const C = {
   stock:    '#0EA5E9',
 };
 
+/* ─── Axis Config Generator ───────────────────────────── */
+function calcYAxisConfig(data = [], keys = []) {
+  let max = 0;
+  data.forEach((item) => {
+    keys.forEach((k) => {
+      const val = Number(item[k] || 0);
+      if (val > max) max = val;
+    });
+  });
+
+  if (max <= 0) max = 100;
+
+  // Compute a clean step
+  const roughStep = max / 4;
+  let step;
+  if (roughStep <= 15) step = 15;
+  else if (roughStep <= 25) step = 25;
+  else if (roughStep <= 50) step = 50;
+  else if (roughStep <= 100) step = 100;
+  else if (roughStep <= 250) step = 250;
+  else if (roughStep <= 500) step = 500;
+  else if (roughStep <= 1000) step = 1000;
+  else if (roughStep <= 2500) step = 2500;
+  else if (roughStep <= 5000) step = 5000;
+  else {
+    const power = Math.pow(10, Math.floor(Math.log10(roughStep)));
+    step = Math.ceil(roughStep / power) * power;
+  }
+
+  const yMax = step * 4 >= max ? step * 4 : Math.ceil(max / step) * step;
+  const ticks = [0, step, step * 2, step * 3, yMax];
+
+  return { yMax, ticks, dummyData: [{ dummy: yMax }] };
+}
+
 /* ─── Custom Tooltip ─────────────────────────────────── */
 function ChartTooltip({ active, payload, label }) {
   if (!active || !payload || !payload.length) return null;
@@ -215,6 +250,7 @@ export default function Reports() {
   const [summary, setSummary] = useState(null);
   const [topProducts, setTopProducts] = useState([]);
   const [selectedBar, setSelectedBar] = useState(null);
+  const [selectedSalesIndex, setSelectedSalesIndex] = useState(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
@@ -273,6 +309,16 @@ export default function Reports() {
     });
     return Object.values(grouped);
   }, [sales, timeframe]);
+
+  const salesAxisConfig = useMemo(
+    () => calcYAxisConfig(salesProfitData, ['sales', 'profit']),
+    [salesProfitData]
+  );
+
+  const batchAxisConfig = useMemo(
+    () => calcYAxisConfig(batchData, ['realizedProfit']),
+    [batchData]
+  );
 
   const insights = useMemo(() => buildInsights(summary, topProducts, batchData, language), [summary, topProducts, batchData, language]);
 
@@ -412,7 +458,12 @@ export default function Reports() {
     );
   }
 
-  const fmtK = (v) => v >= 1000 ? `₹${(v/1000).toFixed(0)}k` : `₹${v}`;
+  const fmtK = (v) => {
+    if (v === 0) return '₹0';
+    if (v >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
+    if (v >= 1000) return `₹${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k`;
+    return `₹${v}`;
+  };
 
   return (
     <div className="page-content">
@@ -486,36 +537,148 @@ export default function Reports() {
             <ChartCard>
               {salesProfitData.length > 0 ? (
                 <>
-                  <div
-                    ref={salesScrollRef}
-                    style={{
-                      width: '100%',
-                      overflowX: 'auto',
-                      overflowY: 'hidden',
-                      scrollbarWidth: 'thin',
-                      WebkitOverflowScrolling: 'touch',
-                      paddingBottom: 4,
-                    }}
-                  >
-                    <div style={{
-                      width: salesProfitData.length > 6 ? `${Math.max(340, salesProfitData.length * 56)}px` : '100%',
-                      minWidth: '100%',
-                      height: 220,
-                    }}>
+                  <div style={{ display: 'flex', width: '100%', height: 235, position: 'relative' }}>
+                    {/* Fixed Left Y-Axis: Stays pinned and never moves on scroll, no borders */}
+                    <div className="chart-y-axis-fixed" style={{ width: 48, height: '100%' }}>
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={salesProfitData} margin={{ top: 8, right: 12, left: -10, bottom: 0 }} barGap={3}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                          <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} axisLine={false} tickLine={false} interval={0} />
-                          <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} axisLine={false} tickLine={false} tickFormatter={fmtK} width={42} />
-                          <Tooltip content={<ChartTooltip />} />
-                          <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, paddingTop: 8 }} />
-                          <Bar dataKey="sales" name={t.salesLabel || 'Sales'} fill={C.sales} radius={[5,5,0,0]} maxBarSize={28} />
-                          <Bar dataKey="profit" name={t.profitLabel || 'Profit'} fill={C.profit} radius={[5,5,0,0]} maxBarSize={28} />
+                        <BarChart
+                          data={salesAxisConfig.dummyData}
+                          margin={{ top: 8, right: 0, left: -6, bottom: 24 }}
+                        >
+                          <YAxis
+                            domain={[0, salesAxisConfig.yMax]}
+                            ticks={salesAxisConfig.ticks}
+                            tick={{
+                              fontSize: 12,
+                              fontWeight: 700,
+                              fill: 'var(--color-text-secondary, #475569)',
+                            }}
+                            axisLine={false}
+                            tickLine={false}
+                            tickFormatter={fmtK}
+                            width={48}
+                          />
+                          <Bar dataKey="dummy" fill="transparent" isAnimationActive={false} stroke="none" strokeWidth={0} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
+
+                    {/* Scrollable Right Bar Chart Area */}
+                    <div
+                      ref={salesScrollRef}
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        overflowX: 'auto',
+                        overflowY: 'hidden',
+                        scrollbarWidth: 'thin',
+                        WebkitOverflowScrolling: 'touch',
+                        paddingBottom: 4,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width:
+                            salesProfitData.length > 5
+                              ? `${Math.max(280, salesProfitData.length * 58)}px`
+                              : '100%',
+                          minWidth: '100%',
+                          height: 235,
+                        }}
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={salesProfitData}
+                            onClick={(d) => {
+                              if (d?.activeTooltipIndex !== undefined) {
+                                const idx = d.activeTooltipIndex;
+                                setSelectedSalesIndex((prev) => (prev === idx ? null : idx));
+                              }
+                            }}
+                            margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                            barGap={3}
+                          >
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              stroke="var(--color-border)"
+                              vertical={false}
+                            />
+                            <XAxis
+                              dataKey="label"
+                              tick={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                fill: 'var(--color-text-tertiary)',
+                              }}
+                              axisLine={false}
+                              tickLine={false}
+                              interval={0}
+                              height={24}
+                            />
+                            <YAxis
+                              domain={[0, salesAxisConfig.yMax]}
+                              ticks={salesAxisConfig.ticks}
+                              hide={true}
+                            />
+                            <Tooltip cursor={false} content={<ChartTooltip />} />
+                            <Legend
+                              iconType="circle"
+                              iconSize={8}
+                              wrapperStyle={{ fontSize: 12, paddingTop: 4 }}
+                            />
+                            <Bar
+                              dataKey="sales"
+                              name={t.salesLabel || 'Sales'}
+                              fill={C.sales}
+                              radius={[5, 5, 0, 0]}
+                              maxBarSize={26}
+                              cursor="pointer"
+                              stroke="none"
+                              strokeWidth={0}
+                            >
+                              {salesProfitData.map((_, index) => {
+                                const isSelected = selectedSalesIndex === index;
+                                return (
+                                  <Cell
+                                    key={index}
+                                    fill={C.sales}
+                                    stroke={isSelected ? '#0F172A' : 'none'}
+                                    strokeWidth={isSelected ? 2.5 : 0}
+                                    opacity={selectedSalesIndex !== null ? (isSelected ? 1 : 0.65) : 1}
+                                  />
+                                );
+                              })}
+                            </Bar>
+                            <Bar
+                              dataKey="profit"
+                              name={t.profitLabel || 'Profit'}
+                              fill={C.profit}
+                              radius={[5, 5, 0, 0]}
+                              maxBarSize={26}
+                              cursor="pointer"
+                              stroke="none"
+                              strokeWidth={0}
+                            >
+                              {salesProfitData.map((_, index) => {
+                                const isSelected = selectedSalesIndex === index;
+                                return (
+                                  <Cell
+                                    key={index}
+                                    fill={C.profit}
+                                    stroke={isSelected ? '#0F172A' : 'none'}
+                                    strokeWidth={isSelected ? 2.5 : 0}
+                                    opacity={selectedSalesIndex !== null ? (isSelected ? 1 : 0.65) : 1}
+                                  />
+                                );
+                              })}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
                   </div>
-                  {salesProfitData.length > 6 && (
+
+                  {salesProfitData.length > 5 && (
                     <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', textAlign: 'right', marginTop: 4, paddingRight: 4 }}>
                       👉 {language === 'ta' ? 'அனைத்து விவரங்களையும் பார்க்க நகர்த்தவும்' : 'Scroll horizontally to view all'}
                     </div>
@@ -541,42 +704,118 @@ export default function Reports() {
             <ChartCard>
               {batchData.length > 0 ? (
                 <>
-                  <div
-                    ref={batchScrollRef}
-                    style={{
-                      width: '100%',
-                      overflowX: 'auto',
-                      overflowY: 'hidden',
-                      scrollbarWidth: 'thin',
-                      WebkitOverflowScrolling: 'touch',
-                      paddingBottom: 4,
-                    }}
-                  >
-                    <div style={{
-                      width: batchData.length > 5 ? `${Math.max(340, batchData.length * 64)}px` : '100%',
-                      minWidth: '100%',
-                      height: 200,
-                    }}>
+                  <div style={{ display: 'flex', width: '100%', height: 215, position: 'relative' }}>
+                    {/* Fixed Left Y-Axis: Stays pinned and never moves on scroll, no borders */}
+                    <div className="chart-y-axis-fixed" style={{ width: 48, height: '100%' }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart
-                          data={batchData}
-                          onClick={(d) => d?.activePayload?.length && setSelectedBar(d.activePayload[0].payload)}
-                          margin={{ top: 8, right: 12, left: -10, bottom: 0 }}
+                          data={batchAxisConfig.dummyData}
+                          margin={{ top: 8, right: 0, left: -6, bottom: 24 }}
                         >
-                          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                          <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} axisLine={false} tickLine={false} interval={0} />
-                          <YAxis tick={{ fontSize: 10, fill: 'var(--color-text-tertiary)' }} axisLine={false} tickLine={false} tickFormatter={fmtK} width={42} />
-                          <Tooltip content={<ChartTooltip />} />
-                          <Bar dataKey="realizedProfit" name={t.profitLabel || 'Profit'} radius={[6,6,0,0]} cursor="pointer" maxBarSize={32}>
-                            {batchData.map((entry, index) => (
-                              <Cell key={index} fill={entry.status === 'completed' ? C.completed : C.batch} />
-                            ))}
-                          </Bar>
+                          <YAxis
+                            domain={[0, batchAxisConfig.yMax]}
+                            ticks={batchAxisConfig.ticks}
+                            tick={{
+                              fontSize: 12,
+                              fontWeight: 700,
+                              fill: 'var(--color-text-secondary, #475569)',
+                            }}
+                            axisLine={false}
+                            tickLine={false}
+                            tickFormatter={fmtK}
+                            width={48}
+                          />
+                          <Bar dataKey="dummy" fill="transparent" isAnimationActive={false} stroke="none" strokeWidth={0} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
+
+                    {/* Scrollable Right Bar Chart Area */}
+                    <div
+                      ref={batchScrollRef}
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        overflowX: 'auto',
+                        overflowY: 'hidden',
+                        scrollbarWidth: 'thin',
+                        WebkitOverflowScrolling: 'touch',
+                        paddingBottom: 4,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width:
+                            batchData.length > 4
+                              ? `${Math.max(280, batchData.length * 64)}px`
+                              : '100%',
+                          minWidth: '100%',
+                          height: 215,
+                        }}
+                      >
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={batchData}
+                            onClick={(d) => {
+                              if (d?.activePayload?.length) {
+                                const clicked = d.activePayload[0].payload;
+                                setSelectedBar((prev) => (prev?.id === clicked.id ? null : clicked));
+                              }
+                            }}
+                            margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                          >
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              stroke="var(--color-border)"
+                              vertical={false}
+                            />
+                            <XAxis
+                              dataKey="label"
+                              tick={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                fill: 'var(--color-text-tertiary)',
+                              }}
+                              axisLine={false}
+                              tickLine={false}
+                              interval={0}
+                              height={24}
+                            />
+                            <YAxis
+                              domain={[0, batchAxisConfig.yMax]}
+                              ticks={batchAxisConfig.ticks}
+                              hide={true}
+                            />
+                            <Tooltip cursor={false} content={<ChartTooltip />} />
+                            <Bar
+                              dataKey="realizedProfit"
+                              name={t.profitLabel || 'Profit'}
+                              radius={[6, 6, 0, 0]}
+                              cursor="pointer"
+                              maxBarSize={32}
+                              stroke="none"
+                              strokeWidth={0}
+                            >
+                              {batchData.map((entry, index) => {
+                                const isSelected = selectedBar?.id === entry.id;
+                                return (
+                                  <Cell
+                                    key={index}
+                                    fill={entry.status === 'completed' ? C.completed : C.batch}
+                                    stroke={isSelected ? '#0F172A' : 'none'}
+                                    strokeWidth={isSelected ? 2.5 : 0}
+                                    opacity={selectedBar ? (isSelected ? 1 : 0.65) : 1}
+                                  />
+                                );
+                              })}
+                            </Bar>
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
                   </div>
-                  {batchData.length > 5 && (
+
+                  {batchData.length > 4 && (
                     <div style={{ fontSize: 11, color: 'var(--color-text-tertiary)', textAlign: 'right', marginTop: 4, paddingRight: 4 }}>
                       👉 {language === 'ta' ? 'அனைத்து தொகுதிகளையும் பார்க்க நகர்த்தவும்' : 'Scroll horizontally to view all'}
                     </div>
