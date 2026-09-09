@@ -36,6 +36,7 @@ const en = {
   savePurchase: 'SAVE PURCHASE',
   purchaseSaved: 'Purchase saved successfully!',
   batchCreated: 'Batch #{n} created',
+  sellingPriceMustBeHigher: 'Selling price must be greater than buying price ({price})',
 
   // Stock
   piecesAvailable: '{n} pieces',

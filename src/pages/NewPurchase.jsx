@@ -5,7 +5,7 @@ import { formatCurrency } from '../utils/formatCurrency';
 import { generateId } from '../utils/generateId';
 import PageHeader from '../components/layout/PageHeader';
 import CurrencyInput from '../components/ui/CurrencyInput';
-import { Plus, X, Save } from 'lucide-react';
+import { Plus, X, Save, AlertTriangle } from 'lucide-react';
 
 const emptyItem = () => ({
   key: generateId(),
@@ -59,7 +59,7 @@ export default function NewPurchase() {
       item.productName.trim() &&
       Number(item.quantity) > 0 &&
       Number(item.purchasePrice) > 0 &&
-      Number(item.sellingPrice) > 0
+      Number(item.sellingPrice) > Number(item.purchasePrice)
   );
 
   const handleSave = async () => {
@@ -175,6 +175,36 @@ export default function NewPurchase() {
             onChange={(v) => updateItem(item.key, 'sellingPrice', v)}
             id={`input-sell-price-${index}`}
           />
+
+          {/* Loss / Equal warning banner */}
+          {Number(item.purchasePrice) > 0 &&
+            Number(item.sellingPrice) > 0 &&
+            Number(item.sellingPrice) <= Number(item.purchasePrice) && (
+              <div
+                className="warning-banner animate-pop"
+                style={{
+                  marginTop: 'var(--space-sm)',
+                  background: '#FEF2F2',
+                  border: '1.5px solid #F87171',
+                  color: '#991B1B',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '8px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: 'var(--font-size-xs)',
+                  fontWeight: 700,
+                }}
+              >
+                <AlertTriangle size={16} color="#DC2626" style={{ flexShrink: 0 }} />
+                <span>
+                  {(t.sellingPriceMustBeHigher || 'Selling price must be greater than buying price ({price})').replace(
+                    '{price}',
+                    formatCurrency(Number(item.purchasePrice))
+                  )}
+                </span>
+              </div>
+            )}
 
           {/* Item totals */}
           {getItemTotal(item) > 0 && (

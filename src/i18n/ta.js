@@ -36,6 +36,7 @@ const ta = {
   savePurchase: 'கொள்முதலை சேமிக்கவும்',
   purchaseSaved: 'கொள்முதல் வெற்றிகரமாக சேமிக்கப்பட்டது!',
   batchCreated: 'தொகுதி #{n} உருவாக்கப்பட்டது',
+  sellingPriceMustBeHigher: 'விற்பனை விலை வாங்கிய விலையை ({price}) விட அதிகமாக இருக்க வேண்டும்',
 
   // Stock
   piecesAvailable: '{n} துணிகள் உள்ளன',
