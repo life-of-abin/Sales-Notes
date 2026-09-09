@@ -294,11 +294,46 @@ export default function Reports() {
 
   const handleExport = async () => {
     if (exporting) return;
+
+    // Check if data is present for the selected timeframe
+    const now = new Date();
+    const cutoff = new Date(now);
+    if (timeframe === 'today') {
+      cutoff.setHours(0, 0, 0, 0);
+    } else if (timeframe === 'week') {
+      cutoff.setDate(now.getDate() - 6);
+      cutoff.setHours(0, 0, 0, 0);
+    } else if (timeframe === 'month') {
+      cutoff.setDate(1);
+      cutoff.setHours(0, 0, 0, 0);
+    } else if (timeframe === 'year') {
+      cutoff.setMonth(0, 1);
+      cutoff.setHours(0, 0, 0, 0);
+    } else {
+      cutoff.setFullYear(2000);
+    }
+
+    const hasPeriodSales = sales && sales.some((s) => new Date(s.date) >= cutoff);
+    const hasPeriodExpenses = expenses && expenses.some((e) => new Date(e.date) >= cutoff);
+    const hasProducts = products && products.length > 0;
+
+    const hasData = hasPeriodSales || hasPeriodExpenses || (timeframe === 'all' && hasProducts);
+
+    if (!hasData) {
+      showToast(
+        language === 'ta'
+          ? 'இந்த காலகட்டத்தில் அறிக்கை தரவுகள் எதுவும் இல்லை (No report data)'
+          : 'No report data is available for this period!',
+        'warning'
+      );
+      return;
+    }
+
     setExporting(true);
     try {
       const allLots = await db.inventoryLots.toArray();
-      const currentTab = tabs.find(tb => tb.key === timeframe);
-      await exportReportToExcel({
+      const currentTab = tabs.find((tb) => tb.key === timeframe);
+      const res = await exportReportToExcel({
         timeframe,
         timeframeLabel: currentTab ? currentTab.label : timeframe,
         summary: summary || {},
@@ -311,10 +346,30 @@ export default function Reports() {
         language,
         t,
       });
-      showToast(t.exportSuccess || 'Excel report downloaded successfully!');
+
+      if (res && res.noData) {
+        showToast(
+          language === 'ta'
+            ? 'அறிக்கை தரவுகள் எதுவும் இல்லை (No report data available)'
+            : 'No report data is available to download!',
+          'warning'
+        );
+      } else {
+        showToast(
+          t.exportSuccess ||
+            (language === 'ta'
+              ? 'எக்செல் அறிக்கை வெற்றிகரமாக பதிவிறக்கம் செய்யப்பட்டது!'
+              : 'Excel report downloaded successfully!')
+        );
+      }
     } catch (err) {
       console.error('Export error:', err);
-      showToast('Export failed. Please try again.', 'error');
+      showToast(
+        language === 'ta'
+          ? 'பதிவிறக்கம் தோல்வியடைந்தது. மீண்டும் முயற்சிக்கவும்.'
+          : 'Export failed. Please try again.',
+        'error'
+      );
     } finally {
       setExporting(false);
     }

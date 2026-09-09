@@ -171,6 +171,16 @@ export async function exportReportToExcel({
     .filter((e) => new Date(e.date) >= cutoff)
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
+  // Only proceed if report data exists for this period
+  const hasData =
+    filteredSales.length > 0 ||
+    filteredExpenses.length > 0 ||
+    (timeframe === 'all' && products && products.length > 0);
+
+  if (!hasData) {
+    return { success: false, noData: true };
+  }
+
   // Map products and customers
   const productMap = new Map(products.map((p) => [p.id, p]));
   const customerMap = new Map(customers.map((c) => [c.id, c]));
@@ -442,4 +452,6 @@ export async function exportReportToExcel({
   setTimeout(() => {
     URL.revokeObjectURL(url);
   }, 1500);
+
+  return { success: true };
 }
