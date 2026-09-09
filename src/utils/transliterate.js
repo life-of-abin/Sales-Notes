@@ -1,7 +1,7 @@
 // High-accuracy Bidirectional Transliteration and Localization Engine for Tamil <-> English
 
 // Common Clothes & Product Name Mappings (English <-> Tamil)
-const PRODUCT_MAP_EN_TO_TA = {
+export const PRODUCT_MAP_EN_TO_TA = {
   jeans: 'ஜீன்ஸ்',
   jean: 'ஜீன்ஸ்',
   tops: 'டாப்ஸ்',
@@ -42,9 +42,33 @@ const PRODUCT_MAP_EN_TO_TA = {
   frock: 'பிராக்',
   kids: 'குழந்தைகள் ஆடை',
   other: 'மற்றவை',
+  cotton: 'காட்டன்',
+  silk: 'பட்டு',
+  pattu: 'பட்டு',
+  men: 'ஆண்கள்',
+  mens: 'ஆண்கள்',
+  women: 'பெண்கள்',
+  womens: 'பெண்கள்',
+  baby: 'குழந்தைகள்',
+  printed: 'பிரிண்டட்',
+  plain: 'ப்ளெயின்',
+  denim: 'டெனிம்',
+  soft: 'சாஃப்ட்',
+  fancy: 'ஃபேன்ஸி',
+  blue: 'நீலம்',
+  black: 'கருப்பு',
+  white: 'வெள்ளை',
+  red: 'சிகப்பு',
+  green: 'பச்சை',
+  yellow: 'மஞ்சள்',
+  dress: 'ஆடை',
+  cloth: 'துணி',
+  clothes: 'துணிகள்',
+  material: 'துணி மெட்டீரியல்',
+  readymade: 'ரெடிமேட்',
 };
 
-const PRODUCT_MAP_TA_TO_EN = {
+export const PRODUCT_MAP_TA_TO_EN = {
   'ஜீன்ஸ்': 'Jeans',
   'டாப்ஸ்': 'Tops',
   'புடவை': 'Sarees',
@@ -63,13 +87,88 @@ const PRODUCT_MAP_TA_TO_EN = {
   'குர்தா': 'Kurtas',
   'வேஷ்டி': 'Dhotis',
   'துண்டு': 'Towels',
-  'பெட்ஷீட்': 'Bedsheet',
+  'பெட்ஷீட்': 'Bedsheets',
   'பிராக்': 'Frocks',
   'மற்றவை': 'Other',
+  'காட்டன்': 'Cotton',
+  'பட்டு': 'Silk',
+  'ஆண்கள்': 'Mens',
+  'பெண்கள்': 'Womens',
+  'குழந்தைகள்': 'Kids',
+  'குழந்தைகள் ஆடை': 'Kids Wear',
+  'பிரிண்டட்': 'Printed',
+  'ப்ளெயின்': 'Plain',
+  'டெனிம்': 'Denim',
+  'சாஃப்ட்': 'Soft',
+  'ஃபேன்ஸி': 'Fancy',
+  'நீலம்': 'Blue',
+  'கருப்பு': 'Black',
+  'வெள்ளை': 'White',
+  'சிகப்பு': 'Red',
+  'பச்சை': 'Green',
+  'மஞ்சள்': 'Yellow',
+  'ஆடை': 'Dress',
+  'துணி': 'Cloth',
+  'துணிகள்': 'Clothes',
+  'ரெடிமேட்': 'Readymade',
+};
+
+// Expense Categories Mapping (English <-> Tamil)
+export const EXPENSE_MAP_EN_TO_TA = {
+  transport: 'போக்குவரத்து / வண்டி',
+  packaging: 'பேக்கிங் / கவர்',
+  'shop rent': 'கடை வாடகை',
+  rent: 'வாடகை',
+  'phone/internet': 'போன் / இன்டர்நெட்',
+  phone: 'போன் கட்டணம்',
+  internet: 'இன்டர்நெட்',
+  food: 'உணவு / டீ செலவு',
+  tea: 'டீ / காபி செலவு',
+  coffee: 'காபி செலவு',
+  labour: 'கூலி / சம்பளம்',
+  salary: 'சம்பளம்',
+  wages: 'கூலி',
+  electricity: 'மின் கட்டணம்',
+  eb: 'மின் கட்டணம்',
+  'current bill': 'மின் கட்டணம்',
+  petrol: 'பெட்ரோல்',
+  diesel: 'டீசல்',
+  maintenance: 'பராமரிப்பு',
+  purchase: 'சரக்கு கொள்முதல்',
+  other: 'மற்றவை',
+  general: 'பொது செலவு',
+  'general expense': 'பொது செலவு',
+};
+
+export const EXPENSE_MAP_TA_TO_EN = {
+  'போக்குவரத்து': 'Transport',
+  'போக்குவரத்து / வண்டி': 'Transport',
+  'வண்டி': 'Transport',
+  'பேக்கிங்': 'Packaging',
+  'பேக்கிங் / கவர்': 'Packaging',
+  'கடை வாடகை': 'Shop rent',
+  'வாடகை': 'Rent',
+  'போன்': 'Phone',
+  'போன் / இன்டர்நெட்': 'Phone / Internet',
+  'இன்டர்நெட்': 'Internet',
+  'உணவு': 'Food',
+  'உணவு / டீ செலவு': 'Food / Tea',
+  'டீ': 'Tea',
+  'டீ / காபி': 'Tea / Coffee',
+  'கூலி': 'Labour',
+  'கூலி / சம்பளம்': 'Labour / Salary',
+  'சம்பளம்': 'Salary',
+  'மின் கட்டணம்': 'Electricity Bill',
+  'பெட்ரோல்': 'Petrol',
+  'டீசல்': 'Diesel',
+  'பராமரிப்பு': 'Maintenance',
+  'சரக்கு கொள்முதல்': 'Purchase / Inventory',
+  'மற்றவை': 'Other',
+  'பொது செலவு': 'General Expense',
 };
 
 // Comprehensive Customer Names Dictionary (English <-> Tamil)
-const NAME_MAP_EN_TO_TA = {
+export const NAME_MAP_EN_TO_TA = {
   kumar: 'குமார்',
   ram: 'ராம்',
   ramesh: 'ரமேஷ்',
@@ -233,7 +332,7 @@ const NAME_MAP_EN_TO_TA = {
 };
 
 // Build reverse dictionary dynamically
-const NAME_MAP_TA_TO_EN = {};
+export const NAME_MAP_TA_TO_EN = {};
 for (const [enKey, taVal] of Object.entries(NAME_MAP_EN_TO_TA)) {
   const cap = enKey.charAt(0).toUpperCase() + enKey.slice(1);
   NAME_MAP_TA_TO_EN[taVal] = cap;
@@ -244,7 +343,7 @@ for (const [enKey, taVal] of Object.entries(NAME_MAP_EN_TO_TA)) {
  */
 export function isTamil(text) {
   if (!text) return false;
-  return /[\u0B80-\u0BFF]/.test(text);
+  return /[\u0B80-\u0BFF]/.test(String(text));
 }
 
 /**
@@ -271,11 +370,16 @@ const TA_SIGNS = {
 export function transliterateTamilToEnglish(tamilText) {
   if (!tamilText || typeof tamilText !== 'string') return '';
   const trimmed = tamilText.trim();
+  if (!trimmed) return '';
+
   if (NAME_MAP_TA_TO_EN[trimmed]) {
     return NAME_MAP_TA_TO_EN[trimmed];
   }
   if (PRODUCT_MAP_TA_TO_EN[trimmed]) {
     return PRODUCT_MAP_TA_TO_EN[trimmed];
+  }
+  if (EXPENSE_MAP_TA_TO_EN[trimmed]) {
+    return EXPENSE_MAP_TA_TO_EN[trimmed];
   }
 
   // General character-by-character conversion
@@ -312,7 +416,7 @@ export function transliterateTamilToEnglish(tamilText) {
 }
 
 /**
- * Phonetic English-to-Tamil parser for any arbitrary English name
+ * Phonetic English-to-Tamil parser for any arbitrary English text
  */
 const EN_STANDALONE_VOWELS = [
   ['aa', 'ஆ'], ['a', 'அ'],
@@ -356,20 +460,24 @@ export function transliterateEnglishToTamil(englishText) {
   if (NAME_MAP_EN_TO_TA[lower]) {
     return NAME_MAP_EN_TO_TA[lower];
   }
+  if (PRODUCT_MAP_EN_TO_TA[lower]) {
+    return PRODUCT_MAP_EN_TO_TA[lower];
+  }
+  if (EXPENSE_MAP_EN_TO_TA[lower]) {
+    return EXPENSE_MAP_EN_TO_TA[lower];
+  }
 
   let pos = 0;
   let result = '';
   const len = lower.length;
 
   while (pos < len) {
-    // Check spaces / non-alpha
     if (lower[pos] === ' ') {
       result += ' ';
       pos++;
       continue;
     }
 
-    // At word start or after space, check standalone vowel
     const isStart = pos === 0 || lower[pos - 1] === ' ';
     if (isStart) {
       let matchedVowel = false;
@@ -384,23 +492,18 @@ export function transliterateEnglishToTamil(englishText) {
       if (matchedVowel) continue;
     }
 
-    // Try to match a consonant
     let matchedConsonant = false;
     for (const [cKey, cChar] of EN_CONSONANTS) {
       if (lower.startsWith(cKey, pos)) {
         pos += cKey.length;
         matchedConsonant = true;
 
-        // Base consonant without implicit halant
         const base = cChar.replace('்', '');
 
-        // Check if next is vowel
         let matchedSign = false;
         for (const [sKey, sChar] of EN_VOWEL_SIGNS) {
           if (lower.startsWith(sKey, pos)) {
-            // If short 'a', just base consonant
             if (sKey === 'a') {
-              // Special case: word-final 'a' usually lengthens in Tamil names (e.g. Sujitha -> சுஜிதா, Priya -> பிரியா)
               const isEnd = pos + 1 >= len || lower[pos + 1] === ' ';
               result += base + (isEnd ? 'ா' : '');
             } else {
@@ -413,8 +516,6 @@ export function transliterateEnglishToTamil(englishText) {
         }
 
         if (!matchedSign) {
-          // Consonant followed by another consonant or end of word -> add pulli (virama)
-          // Exception: word-final 'n', 'r', 'l', 'm', 'y' gets pulli
           result += base + '்';
         }
         break;
@@ -422,7 +523,6 @@ export function transliterateEnglishToTamil(englishText) {
     }
 
     if (!matchedConsonant) {
-      // Just copy character
       result += lower[pos];
       pos++;
     }
@@ -444,6 +544,12 @@ export function toTamilName(name) {
     return NAME_MAP_EN_TO_TA[lower];
   }
 
+  // Handle multi-word names (e.g. "Ramesh Kumar")
+  const words = trimmed.split(/\s+/);
+  if (words.length > 1) {
+    return words.map((w) => toTamilName(w)).join(' ');
+  }
+
   return transliterateEnglishToTamil(trimmed);
 }
 
@@ -457,6 +563,12 @@ export function toEnglishName(name) {
 
   if (NAME_MAP_TA_TO_EN[trimmed]) {
     return NAME_MAP_TA_TO_EN[trimmed];
+  }
+
+  // Handle multi-word names in Tamil (e.g. "ரமேஷ் குமார்")
+  const words = trimmed.split(/\s+/);
+  if (words.length > 1) {
+    return words.map((w) => toEnglishName(w)).join(' ');
   }
 
   return transliterateTamilToEnglish(trimmed);
@@ -478,6 +590,7 @@ export function formatCustomerDisplayName(name, language = 'en') {
 
 /**
  * Formats product / cloth category names based on active language.
+ * Completely translates/transliterates word-by-word if needed.
  */
 export function formatProductDisplayName(name, language = 'en') {
   if (!name) return '';
@@ -489,16 +602,94 @@ export function formatProductDisplayName(name, language = 'en') {
   if (language === 'ta') {
     if (isTamil(trimmed)) return trimmed;
     if (PRODUCT_MAP_EN_TO_TA[lower]) return PRODUCT_MAP_EN_TO_TA[lower];
+
+    // Multi-word product (e.g. "Cotton Saree", "Blue Jeans", "Kids Frock")
+    const words = trimmed.split(/\s+/);
+    if (words.length > 1) {
+      return words
+        .map((w) => {
+          const lw = w.toLowerCase();
+          if (PRODUCT_MAP_EN_TO_TA[lw]) return PRODUCT_MAP_EN_TO_TA[lw];
+          return transliterateEnglishToTamil(w);
+        })
+        .join(' ');
+    }
+
     for (const [k, v] of Object.entries(PRODUCT_MAP_EN_TO_TA)) {
       if (lower.includes(k)) return v;
     }
-    return toTamilName(trimmed);
+    return transliterateEnglishToTamil(trimmed);
   } else {
     if (!isTamil(trimmed)) return trimmed;
     if (PRODUCT_MAP_TA_TO_EN[trimmed]) return PRODUCT_MAP_TA_TO_EN[trimmed];
+
+    // Multi-word product in Tamil (e.g. "காட்டன் புடவை")
+    const words = trimmed.split(/\s+/);
+    if (words.length > 1) {
+      return words
+        .map((w) => {
+          if (PRODUCT_MAP_TA_TO_EN[w]) return PRODUCT_MAP_TA_TO_EN[w];
+          return transliterateTamilToEnglish(w);
+        })
+        .join(' ');
+    }
+
     for (const [k, v] of Object.entries(PRODUCT_MAP_TA_TO_EN)) {
       if (trimmed.includes(k)) return v;
     }
-    return toEnglishName(trimmed);
+    return transliterateTamilToEnglish(trimmed);
+  }
+}
+
+/**
+ * Formats expense categories based on active language.
+ */
+export function formatExpenseDisplayName(type, language = 'en') {
+  if (!type) return language === 'ta' ? 'பொது செலவு' : 'General Expense';
+  const trimmed = String(type).trim();
+  const lower = trimmed.toLowerCase();
+
+  if (language === 'ta') {
+    if (isTamil(trimmed)) return trimmed;
+    if (EXPENSE_MAP_EN_TO_TA[lower]) return EXPENSE_MAP_EN_TO_TA[lower];
+    for (const [k, v] of Object.entries(EXPENSE_MAP_EN_TO_TA)) {
+      if (lower.includes(k)) return v;
+    }
+    return transliterateEnglishToTamil(trimmed);
+  } else {
+    if (!isTamil(trimmed)) return trimmed;
+    if (EXPENSE_MAP_TA_TO_EN[trimmed]) return EXPENSE_MAP_TA_TO_EN[trimmed];
+    for (const [k, v] of Object.entries(EXPENSE_MAP_TA_TO_EN)) {
+      if (trimmed.includes(k)) return v;
+    }
+    return transliterateTamilToEnglish(trimmed);
+  }
+}
+
+/**
+ * General helper to convert free text or notes to the target language
+ */
+export function formatTextLanguage(text, language = 'en') {
+  if (!text) return '-';
+  if (typeof text !== 'string') return String(text);
+  const trimmed = text.trim();
+  if (!trimmed || trimmed === '-') return '-';
+
+  if (language === 'ta') {
+    if (isTamil(trimmed)) return trimmed;
+    // Common note terms
+    const lower = trimmed.toLowerCase();
+    if (lower === 'paid' || lower === 'full paid') return 'முழு பணம்';
+    if (lower === 'pending' || lower === 'partial') return 'நிலுவை';
+    if (lower === 'cash') return 'ரொக்கம் (Cash)';
+    if (lower === 'gpay' || lower === 'google pay') return 'கூகுள் பே (GPay)';
+    if (lower === 'phonepe') return 'போன்பே (PhonePe)';
+    if (lower === 'online' || lower === 'upi') return 'யுபிஐ (UPI)';
+    return transliterateEnglishToTamil(trimmed);
+  } else {
+    if (!isTamil(trimmed)) return trimmed;
+    if (trimmed === 'முழு பணம்' || trimmed === 'பணம் செலுத்தப்பட்டது') return 'Paid';
+    if (trimmed === 'நிலுவை' || trimmed === 'பகுதி') return 'Pending / Partial';
+    return transliterateTamilToEnglish(trimmed);
   }
 }
