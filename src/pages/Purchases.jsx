@@ -188,169 +188,245 @@ export default function Purchases() {
         title={selectedBatch ? `${t.batch} #${selectedBatch.batchNumber}` : ''}
       >
         {selectedBatch && selectedBatchMetrics && (
-          <>
-            <div style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-xl)', fontSize: 'var(--font-size-sm)' }}>
-              {formatDate(selectedBatch.date, language)}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+            {/* Top Metadata & Status */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+              <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
+                {formatDate(selectedBatch.date, language)}
+              </span>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '3px 9px',
+                  borderRadius: '12px',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  background: selectedBatchMetrics.status === 'completed' ? '#22C55E18' : '#3B82F618',
+                  color: selectedBatchMetrics.status === 'completed' ? '#16A34A' : '#2563EB',
+                  border: `1px solid ${selectedBatchMetrics.status === 'completed' ? '#22C55E40' : '#3B82F640'}`,
+                }}
+              >
+                {selectedBatchMetrics.status === 'completed' ? (
+                  <>
+                    <CheckCircle2 size={11} strokeWidth={2.5} />
+                    {t.soldOutTag || 'Sold Out'}
+                  </>
+                ) : (
+                  <>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2563EB' }} />
+                    {t.sellingStatus || 'Selling'}
+                  </>
+                )}
+              </span>
             </div>
 
-            {/* Items in batch */}
-            {selectedBatchMetrics.lots.map((lot) => {
-              const isSoldOut = lot.remainingQty === 0;
+            {/* FIXED / PROMINENT OVERALL PARAMETERS SUMMARY */}
+            <div
+              className="card"
+              style={{
+                background: 'var(--color-surface-2, #F8FAFC)',
+                border: '1px solid var(--color-border, #E2E8F0)',
+                padding: 'var(--space-md) var(--space-lg)',
+                borderRadius: 'var(--radius-lg)',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                margin: 0,
+              }}
+            >
+              <div style={{ fontWeight: 800, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
+                📊 {t.overallSummary || 'Overall Summary'}
+              </div>
 
-              return (
-                <div key={lot.id} className="card" style={{ marginBottom: 'var(--space-sm)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontWeight: 600 }}>{formatProductDisplayName(lot.productName, language)}</span>
-                      {isSoldOut && (
-                        <span style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '3px',
-                          padding: '2px 7px',
-                          borderRadius: '12px',
-                          background: '#22C55E18',
-                          color: '#16A34A',
-                          border: '1px solid #22C55E40',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          lineHeight: 1,
-                        }}>
-                          <CheckCircle2 size={11} strokeWidth={2.5} />
-                          {t.soldOutTag || 'Sold Out'}
+              <div className="summary-row" style={{ marginBottom: 4 }}>
+                <span className="summary-row-label">{t.totalInvestment}</span>
+                <span className="summary-row-value" style={{ fontWeight: 700 }}>
+                  {formatCurrency(selectedBatchMetrics.totalInvestment)}
+                </span>
+              </div>
+              <div className="summary-row" style={{ marginBottom: 4 }}>
+                <span className="summary-row-label">{t.totalSales}</span>
+                <span className="summary-row-value" style={{ fontWeight: 700 }}>
+                  {formatCurrency(selectedBatchMetrics.totalSales || selectedBatchMetrics.totalRevenue || 0)}
+                </span>
+              </div>
+              <div className="summary-row" style={{ marginBottom: 4 }}>
+                <span className="summary-row-label">{t.expectedProfit || 'Expected Profit'}</span>
+                <span className="summary-row-value" style={{ color: 'var(--color-primary, #5B1EE6)', fontWeight: 700 }}>
+                  {formatCurrency(selectedBatchMetrics.expectedProfit ?? 0)}
+                </span>
+              </div>
+              <div className="summary-row" style={{ marginBottom: selectedBatchMetrics.totalDiscount > 0 || selectedBatchMetrics.totalExtra > 0 || selectedBatchMetrics.totalLoss > 0 ? 4 : 0 }}>
+                <span className="summary-row-label">{t.realizedProfit}</span>
+                <span className={`summary-row-value ${selectedBatchMetrics.realizedProfit >= 0 ? 'profit' : 'loss'}`} style={{ fontWeight: 700 }}>
+                  {formatCurrency(selectedBatchMetrics.realizedProfit)}
+                </span>
+              </div>
+
+              {selectedBatchMetrics.totalDiscount > 0 && (
+                <div className="summary-row" style={{ marginBottom: 4 }}>
+                  <span className="summary-row-label">{t.discount}</span>
+                  <span className="summary-row-value" style={{ color: '#EF4444', fontWeight: 700 }}>
+                    -{formatCurrency(selectedBatchMetrics.totalDiscount)}
+                  </span>
+                </div>
+              )}
+
+              {selectedBatchMetrics.totalExtra > 0 && (
+                <div className="summary-row" style={{ marginBottom: 4 }}>
+                  <span className="summary-row-label">{t.extra || 'Extra'}</span>
+                  <span className="summary-row-value" style={{ color: '#10B981', fontWeight: 700 }}>
+                    +{formatCurrency(selectedBatchMetrics.totalExtra)}
+                  </span>
+                </div>
+              )}
+
+              {selectedBatchMetrics.totalLoss > 0 && (
+                <div className="summary-row">
+                  <span className="summary-row-label">{t.lossLabel || t.loss || 'Loss'}</span>
+                  <span className="summary-row-value" style={{ color: '#EF4444', fontWeight: 700 }}>
+                    {formatCurrency(selectedBatchMetrics.totalLoss)}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* SCROLLABLE ITEMS LIST */}
+            <div style={{ marginTop: 2 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, padding: '0 2px' }}>
+                <span style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', color: 'var(--color-text)' }}>
+                  📦 {language === 'ta' ? 'பொருட்கள் பட்டியல்' : 'Items List'} ({selectedBatchMetrics.lots.length})
+                </span>
+                {selectedBatchMetrics.lots.length > 2 && (
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
+                    ↕️ {language === 'ta' ? 'உருட்டவும்' : 'Scroll items'}
+                  </span>
+                )}
+              </div>
+
+              {/* Dedicated Scrollable List Container */}
+              <div
+                style={{
+                  maxHeight: '260px',
+                  overflowY: 'auto',
+                  paddingRight: 4,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  scrollbarWidth: 'thin',
+                  WebkitOverflowScrolling: 'touch',
+                }}
+              >
+                {selectedBatchMetrics.lots.map((lot) => {
+                  const isSoldOut = lot.remainingQty === 0;
+
+                  return (
+                    <div
+                      key={lot.id}
+                      className="card"
+                      style={{
+                        margin: 0,
+                        padding: '10px 12px',
+                        border: '1px solid var(--color-border)',
+                        background: 'var(--color-surface, #ffffff)',
+                        borderRadius: 'var(--radius-md)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 600 }}>{formatProductDisplayName(lot.productName, language)}</span>
+                          {isSoldOut && (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              padding: '2px 7px',
+                              borderRadius: '12px',
+                              background: '#22C55E18',
+                              color: '#16A34A',
+                              border: '1px solid #22C55E40',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              lineHeight: 1,
+                            }}>
+                              <CheckCircle2 size={11} strokeWidth={2.5} />
+                              {t.soldOutTag || 'Sold Out'}
+                            </span>
+                          )}
+                        </div>
+                        <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
+                          {lot.quantity} {t.pieces}
                         </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                        <span>{t.costPriceLabel || t.buyLabel}: {formatCurrency(lot.purchasePrice)}</span>
+                        <span>{t.sellingPriceLabel || t.sellLabel}: {formatCurrency(lot.sellingPrice)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 'var(--font-size-sm)', marginTop: 4 }}>
+                        <span style={{ color: 'var(--color-text-tertiary)' }}>
+                          {t.remaining}: {lot.remainingQty}/{lot.quantity}
+                        </span>
+                        <span style={{ color: lot.realizedProfit >= 0 ? 'var(--color-success)' : 'var(--color-danger)', fontWeight: 600 }}>
+                          {t.realizedProfit || t.earned}: {formatCurrency(lot.realizedProfit)}
+                        </span>
+                      </div>
+                      {lot.discount > 0 && (
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: 'var(--font-size-xs)',
+                          marginTop: 4,
+                          paddingTop: 2,
+                        }}>
+                          <span style={{ color: 'var(--color-text-tertiary)' }}>
+                            {t.discount || t.discountGiven}:
+                          </span>
+                          <span style={{ color: '#EF4444', fontWeight: 700 }}>
+                            -{formatCurrency(lot.discount)}
+                          </span>
+                        </div>
+                      )}
+                      {lot.extra > 0 && (
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: 'var(--font-size-xs)',
+                          marginTop: 4,
+                          paddingTop: 2,
+                        }}>
+                          <span style={{ color: 'var(--color-text-tertiary)' }}>
+                            {t.extra || t.extraEarned || 'Extra'}:
+                          </span>
+                          <span style={{ color: '#10B981', fontWeight: 700 }}>
+                            +{formatCurrency(lot.extra)}
+                          </span>
+                        </div>
+                      )}
+                      {lot.totalLoss > 0 && (
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: 'var(--font-size-xs)',
+                          marginTop: 4,
+                          paddingTop: 2,
+                        }}>
+                          <span style={{ color: 'var(--color-text-tertiary)' }}>
+                            {t.lossLabel || t.loss || 'Loss'}:
+                          </span>
+                          <span style={{ color: '#EF4444', fontWeight: 700 }}>
+                            {formatCurrency(lot.totalLoss)}
+                          </span>
+                        </div>
                       )}
                     </div>
-                    <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
-                      {lot.quantity} {t.pieces}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                    <span>{t.costPriceLabel || t.buyLabel}: {formatCurrency(lot.purchasePrice)}</span>
-                    <span>{t.sellingPriceLabel || t.sellLabel}: {formatCurrency(lot.sellingPrice)}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 'var(--font-size-sm)', marginTop: 4 }}>
-                    <span style={{ color: 'var(--color-text-tertiary)' }}>
-                      {t.remaining}: {lot.remainingQty}/{lot.quantity}
-                    </span>
-                    <span style={{ color: lot.realizedProfit >= 0 ? 'var(--color-success)' : 'var(--color-danger)', fontWeight: 600 }}>
-                      {t.realizedProfit || t.earned}: {formatCurrency(lot.realizedProfit)}
-                    </span>
-                  </div>
-                  {lot.discount > 0 && (
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      fontSize: 'var(--font-size-xs)',
-                      marginTop: 4,
-                      paddingTop: 2,
-                    }}>
-                      <span style={{ color: 'var(--color-text-tertiary)' }}>
-                        {t.discount || t.discountGiven}:
-                      </span>
-                      <span style={{ color: '#EF4444', fontWeight: 700 }}>
-                        -{formatCurrency(lot.discount)}
-                      </span>
-                    </div>
-                  )}
-                  {lot.extra > 0 && (
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      fontSize: 'var(--font-size-xs)',
-                      marginTop: 4,
-                      paddingTop: 2,
-                    }}>
-                      <span style={{ color: 'var(--color-text-tertiary)' }}>
-                        {t.extra || t.extraEarned || 'Extra'}:
-                      </span>
-                      <span style={{ color: '#10B981', fontWeight: 700 }}>
-                        +{formatCurrency(lot.extra)}
-                      </span>
-                    </div>
-                  )}
-                  {lot.totalLoss > 0 && (
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      fontSize: 'var(--font-size-xs)',
-                      marginTop: 4,
-                      paddingTop: 2,
-                    }}>
-                      <span style={{ color: 'var(--color-text-tertiary)' }}>
-                        {t.lossLabel || t.loss || 'Loss'}:
-                      </span>
-                      <span style={{ color: '#EF4444', fontWeight: 700 }}>
-                        {formatCurrency(lot.totalLoss)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            <div className="divider" />
-
-            {/* Batch Summary:
-                1. Total Investment
-                2. Total Sales
-                3. Expected Profit
-                4. Realized Profit
-                5. Discount (if present)
-                6. Extra (if present)
-                7. Loss (if present) */}
-            <div className="summary-row">
-              <span className="summary-row-label">{t.totalInvestment}</span>
-              <span className="summary-row-value">{formatCurrency(selectedBatchMetrics.totalInvestment)}</span>
-            </div>
-            <div className="summary-row">
-              <span className="summary-row-label">{t.totalSales}</span>
-              <span className="summary-row-value">{formatCurrency(selectedBatchMetrics.totalSales || selectedBatchMetrics.totalRevenue || 0)}</span>
-            </div>
-            <div className="summary-row">
-              <span className="summary-row-label">{t.expectedProfit || 'Expected Profit'}</span>
-              <span className="summary-row-value" style={{ color: 'var(--color-primary, #5B1EE6)', fontWeight: 700 }}>
-                {formatCurrency(selectedBatchMetrics.expectedProfit ?? 0)}
-              </span>
-            </div>
-
-            <div className="summary-row">
-              <span className="summary-row-label">{t.realizedProfit}</span>
-              <span className={`summary-row-value ${selectedBatchMetrics.realizedProfit >= 0 ? 'profit' : 'loss'}`}>
-                {formatCurrency(selectedBatchMetrics.realizedProfit)}
-              </span>
-            </div>
-
-            {selectedBatchMetrics.totalDiscount > 0 && (
-              <div className="summary-row">
-                <span className="summary-row-label">{t.discount}</span>
-                <span className="summary-row-value" style={{ color: '#EF4444', fontWeight: 700 }}>
-                  -{formatCurrency(selectedBatchMetrics.totalDiscount)}
-                </span>
+                  );
+                })}
               </div>
-            )}
-
-            {selectedBatchMetrics.totalExtra > 0 && (
-              <div className="summary-row">
-                <span className="summary-row-label">{t.extra || 'Extra'}</span>
-                <span className="summary-row-value" style={{ color: '#10B981', fontWeight: 700 }}>
-                  +{formatCurrency(selectedBatchMetrics.totalExtra)}
-                </span>
-              </div>
-            )}
-
-            {selectedBatchMetrics.totalLoss > 0 && (
-              <div className="summary-row">
-                <span className="summary-row-label">{t.lossLabel || t.loss || 'Loss'}</span>
-                <span className="summary-row-value" style={{ color: '#EF4444', fontWeight: 700 }}>
-                  {formatCurrency(selectedBatchMetrics.totalLoss)}
-                </span>
-              </div>
-            )}
-          </>
+            </div>
+          </div>
         )}
       </Modal>
     </div>
