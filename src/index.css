@@ -689,7 +689,10 @@ ul, ol {
 .qty-selector {
   display: flex;
   align-items: center;
-  gap: var(--space-lg);
+  justify-content: center;
+  gap: var(--space-xl);
+  width: 100%;
+  margin: 0 auto;
 }
 
 .qty-btn {
