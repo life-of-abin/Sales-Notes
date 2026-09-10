@@ -27,6 +27,13 @@ export function BusinessProvider({ children }) {
   const [toasts, setToasts] = useState([]);
   const [stockValue, setStockValue] = useState(0);
   const [stockCost, setStockCost] = useState(0);
+  // Privacy mode defaults to true (hidden) on app open.
+  // Persists across in-app navigation throughout the session once toggled.
+  const [privacyMode, setPrivacyMode] = useState(true);
+
+  const togglePrivacy = useCallback(() => {
+    setPrivacyMode((prev) => !prev);
+  }, []);
 
   const t = language === 'ta' ? ta : en;
 
@@ -490,6 +497,9 @@ export function BusinessProvider({ children }) {
     stockCost,
     totalPending,
     totalExpensesVal,
+    privacyMode,
+    setPrivacyMode,
+    togglePrivacy,
     // Actions
     completeOnboarding,
     createPurchase,

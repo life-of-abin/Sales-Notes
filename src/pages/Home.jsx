@@ -38,20 +38,12 @@ export default function Home() {
     sales,
     saleItems,
     products,
+    privacyMode,
+    togglePrivacy,
   } = useBusiness();
 
-  // Always default to true (Hidden) for privacy on app open
-  const [privacyMode, setPrivacyMode] = useState(true);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
-
-  const togglePrivacy = () => {
-    setPrivacyMode((prev) => {
-      const next = !prev;
-      localStorage.setItem('my_dukaan_privacy', String(next));
-      return next;
-    });
-  };
 
   const handleSelectLanguage = (lang) => {
     changeLanguage(lang);

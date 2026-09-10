@@ -11,7 +11,7 @@ import EmptyState from '../components/ui/EmptyState';
 export default function Sales() {
   const navigate = useNavigate();
   const { sales, saleItems, products, language, t } = useBusiness();
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('today');
 
   const filterFns = {
     all: () => true,

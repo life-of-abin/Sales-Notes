@@ -9,7 +9,7 @@ import { getShortDate } from '../utils/formatDate';
 export async function getBatchProfitData() {
   try {
     const [batches, lots, allocations, saleItems] = await Promise.all([
-      db.purchaseBatches.orderBy('date').toArray(),
+      db.purchaseBatches.orderBy('date').reverse().toArray(),
       db.inventoryLots.toArray(),
       db.saleAllocations.toArray(),
       db.saleItems.toArray(),

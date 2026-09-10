@@ -328,7 +328,7 @@ function buildInsights(summary, topProducts, batchData, language, t) {
 
 export default function Reports() {
   const { batches, sales, saleItems, expenses, products, customers, language, showToast, t } = useBusiness();
-  const [timeframe, setTimeframe] = useState('month');
+  const [timeframe, setTimeframe] = useState('today');
   const [batchData, setBatchData] = useState([]);
   const [summary, setSummary] = useState(null);
   const [topProducts, setTopProducts] = useState([]);
@@ -385,7 +385,7 @@ export default function Reports() {
     return () => { isMounted = false; };
   }, [batches, sales, expenses, products, timeframe]);
 
-  /* Sales vs Profit grouped chart data */
+  /* Sales vs Profit grouped chart data (Most recent days / hours first) */
   const salesProfitData = useMemo(() => {
     if (!sales || sales.length === 0) return [];
     const now = new Date();
@@ -397,7 +397,8 @@ export default function Reports() {
     else { cutoff.setFullYear(2000); }
 
     const filtered = sales.filter(s => new Date(s.date) >= cutoff);
-    const sortedSales = [...filtered].sort((a, b) => new Date(a.date) - new Date(b.date));
+    // Sort descending: recent sales first, followed by previous/older sales
+    const sortedSales = [...filtered].sort((a, b) => new Date(b.date) - new Date(a.date));
     const grouped = {};
     sortedSales.forEach(s => {
       const d = new Date(s.date);
@@ -425,19 +426,19 @@ export default function Reports() {
 
   const insights = useMemo(() => buildInsights(summary, topProducts, batchData, language), [summary, topProducts, batchData, language]);
 
-  // Auto-scroll charts to the latest (right-most) item on data update
+  // Chart scroll refs: start at left (0) to view recent items immediately
   const salesScrollRef = useRef(null);
   const batchScrollRef = useRef(null);
 
   useEffect(() => {
     if (salesScrollRef.current) {
-      salesScrollRef.current.scrollLeft = salesScrollRef.current.scrollWidth;
+      salesScrollRef.current.scrollLeft = 0;
     }
   }, [salesProfitData]);
 
   useEffect(() => {
     if (batchScrollRef.current) {
-      batchScrollRef.current.scrollLeft = batchScrollRef.current.scrollWidth;
+      batchScrollRef.current.scrollLeft = 0;
     }
   }, [batchData]);
 
