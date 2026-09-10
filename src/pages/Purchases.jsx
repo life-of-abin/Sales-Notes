@@ -189,7 +189,7 @@ export default function Purchases() {
       >
         {selectedBatch && selectedBatchMetrics && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-            {/* Top Metadata & Status */}
+            {/* 1. Top Metadata & Status */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
               <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>
                 {formatDate(selectedBatch.date, language)}
@@ -222,101 +222,16 @@ export default function Purchases() {
               </span>
             </div>
 
-            {/* FIXED / PROMINENT OVERALL PARAMETERS SUMMARY */}
-            <div
-              className="card"
-              style={{
-                background: 'var(--color-surface-2, #F8FAFC)',
-                border: '1px solid var(--color-border, #E2E8F0)',
-                padding: 'var(--space-md) var(--space-lg)',
-                borderRadius: 'var(--radius-lg)',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-                margin: 0,
-              }}
-            >
-              <div style={{ fontWeight: 800, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
-                📊 {t.overallSummary || 'Overall Summary'}
-              </div>
-
-              <div className="summary-row" style={{ marginBottom: 4 }}>
-                <span className="summary-row-label">{t.totalInvestment}</span>
-                <span className="summary-row-value" style={{ fontWeight: 700 }}>
-                  {formatCurrency(selectedBatchMetrics.totalInvestment)}
-                </span>
-              </div>
-              <div className="summary-row" style={{ marginBottom: 4 }}>
-                <span className="summary-row-label">{t.totalSales}</span>
-                <span className="summary-row-value" style={{ fontWeight: 700 }}>
-                  {formatCurrency(selectedBatchMetrics.totalSales || selectedBatchMetrics.totalRevenue || 0)}
-                </span>
-              </div>
-              <div className="summary-row" style={{ marginBottom: 4 }}>
-                <span className="summary-row-label">{t.expectedProfit || 'Expected Profit'}</span>
-                <span className="summary-row-value" style={{ color: 'var(--color-primary, #5B1EE6)', fontWeight: 700 }}>
-                  {formatCurrency(selectedBatchMetrics.expectedProfit ?? 0)}
-                </span>
-              </div>
-              <div className="summary-row" style={{ marginBottom: selectedBatchMetrics.totalDiscount > 0 || selectedBatchMetrics.totalExtra > 0 || selectedBatchMetrics.totalLoss > 0 ? 4 : 0 }}>
-                <span className="summary-row-label">{t.realizedProfit}</span>
-                <span className={`summary-row-value ${selectedBatchMetrics.realizedProfit >= 0 ? 'profit' : 'loss'}`} style={{ fontWeight: 700 }}>
-                  {formatCurrency(selectedBatchMetrics.realizedProfit)}
-                </span>
-              </div>
-
-              {selectedBatchMetrics.totalDiscount > 0 && (
-                <div className="summary-row" style={{ marginBottom: 4 }}>
-                  <span className="summary-row-label">{t.discount}</span>
-                  <span className="summary-row-value" style={{ color: '#EF4444', fontWeight: 700 }}>
-                    -{formatCurrency(selectedBatchMetrics.totalDiscount)}
-                  </span>
-                </div>
-              )}
-
-              {selectedBatchMetrics.totalExtra > 0 && (
-                <div className="summary-row" style={{ marginBottom: 4 }}>
-                  <span className="summary-row-label">{t.extra || 'Extra'}</span>
-                  <span className="summary-row-value" style={{ color: '#10B981', fontWeight: 700 }}>
-                    +{formatCurrency(selectedBatchMetrics.totalExtra)}
-                  </span>
-                </div>
-              )}
-
-              {selectedBatchMetrics.totalLoss > 0 && (
-                <div className="summary-row">
-                  <span className="summary-row-label">{t.lossLabel || t.loss || 'Loss'}</span>
-                  <span className="summary-row-value" style={{ color: '#EF4444', fontWeight: 700 }}>
-                    {formatCurrency(selectedBatchMetrics.totalLoss)}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* SCROLLABLE ITEMS LIST */}
-            <div style={{ marginTop: 2 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, padding: '0 2px' }}>
+            {/* 2. SCROLLABLE ITEMS LIST (ABOVE OVERALL VALUES) */}
+            <div>
+              <div style={{ marginBottom: 6, padding: '0 2px' }}>
                 <span style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', color: 'var(--color-text)' }}>
-                  📦 {language === 'ta' ? 'பொருட்கள் பட்டியல்' : 'Items List'} ({selectedBatchMetrics.lots.length})
+                  📦 {language === 'ta' ? 'பொருட்கள் பட்டியல்' : 'Items in Batch'} ({selectedBatchMetrics.lots.length})
                 </span>
-                {selectedBatchMetrics.lots.length > 2 && (
-                  <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>
-                    ↕️ {language === 'ta' ? 'உருட்டவும்' : 'Scroll items'}
-                  </span>
-                )}
               </div>
 
-              {/* Dedicated Scrollable List Container */}
-              <div
-                style={{
-                  maxHeight: '260px',
-                  overflowY: 'auto',
-                  paddingRight: 4,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 8,
-                  scrollbarWidth: 'thin',
-                  WebkitOverflowScrolling: 'touch',
-                }}
-              >
+              {/* Dedicated Scrollable List Container (Shows 3-4 items, visible slider at right) */}
+              <div className="batch-items-scroll">
                 {selectedBatchMetrics.lots.map((lot) => {
                   const isSoldOut = lot.remainingQty === 0;
 
@@ -425,6 +340,75 @@ export default function Purchases() {
                   );
                 })}
               </div>
+            </div>
+
+            {/* 3. OVERALL PARAMETERS SUMMARY (BELOW ITEMS LIST) */}
+            <div
+              className="card"
+              style={{
+                background: 'var(--color-surface-2, #F8FAFC)',
+                border: '1px solid var(--color-border, #E2E8F0)',
+                padding: 'var(--space-md) var(--space-lg)',
+                borderRadius: 'var(--radius-lg)',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                margin: 0,
+              }}
+            >
+              <div style={{ fontWeight: 800, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
+                📊 {t.overallSummary || 'Overall Summary'}
+              </div>
+
+              <div className="summary-row" style={{ marginBottom: 4 }}>
+                <span className="summary-row-label">{t.totalInvestment}</span>
+                <span className="summary-row-value" style={{ fontWeight: 700 }}>
+                  {formatCurrency(selectedBatchMetrics.totalInvestment)}
+                </span>
+              </div>
+              <div className="summary-row" style={{ marginBottom: 4 }}>
+                <span className="summary-row-label">{t.totalSales}</span>
+                <span className="summary-row-value" style={{ fontWeight: 700 }}>
+                  {formatCurrency(selectedBatchMetrics.totalSales || selectedBatchMetrics.totalRevenue || 0)}
+                </span>
+              </div>
+              <div className="summary-row" style={{ marginBottom: 4 }}>
+                <span className="summary-row-label">{t.expectedProfit || 'Expected Profit'}</span>
+                <span className="summary-row-value" style={{ color: 'var(--color-primary, #5B1EE6)', fontWeight: 700 }}>
+                  {formatCurrency(selectedBatchMetrics.expectedProfit ?? 0)}
+                </span>
+              </div>
+              <div className="summary-row" style={{ marginBottom: selectedBatchMetrics.totalDiscount > 0 || selectedBatchMetrics.totalExtra > 0 || selectedBatchMetrics.totalLoss > 0 ? 4 : 0 }}>
+                <span className="summary-row-label">{t.realizedProfit}</span>
+                <span className={`summary-row-value ${selectedBatchMetrics.realizedProfit >= 0 ? 'profit' : 'loss'}`} style={{ fontWeight: 700 }}>
+                  {formatCurrency(selectedBatchMetrics.realizedProfit)}
+                </span>
+              </div>
+
+              {selectedBatchMetrics.totalDiscount > 0 && (
+                <div className="summary-row" style={{ marginBottom: 4 }}>
+                  <span className="summary-row-label">{t.discount}</span>
+                  <span className="summary-row-value" style={{ color: '#EF4444', fontWeight: 700 }}>
+                    -{formatCurrency(selectedBatchMetrics.totalDiscount)}
+                  </span>
+                </div>
+              )}
+
+              {selectedBatchMetrics.totalExtra > 0 && (
+                <div className="summary-row" style={{ marginBottom: 4 }}>
+                  <span className="summary-row-label">{t.extra || 'Extra'}</span>
+                  <span className="summary-row-value" style={{ color: '#10B981', fontWeight: 700 }}>
+                    +{formatCurrency(selectedBatchMetrics.totalExtra)}
+                  </span>
+                </div>
+              )}
+
+              {selectedBatchMetrics.totalLoss > 0 && (
+                <div className="summary-row">
+                  <span className="summary-row-label">{t.lossLabel || t.loss || 'Loss'}</span>
+                  <span className="summary-row-value" style={{ color: '#EF4444', fontWeight: 700 }}>
+                    {formatCurrency(selectedBatchMetrics.totalLoss)}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         )}
