@@ -8,6 +8,7 @@ import { calculateBatchMetrics } from '../services/calculationService';
 import PageHeader from '../components/layout/PageHeader';
 import EmptyState from '../components/ui/EmptyState';
 import Modal from '../components/ui/Modal';
+import SmartAmountText from '../components/ui/SmartAmountText';
 import { CheckCircle2 } from 'lucide-react';
 import db from '../db/database';
 
