@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useBusiness } from '../hooks/useBusiness';
 import { formatCurrency, formatExactCurrency, formatCompactCurrency } from '../utils/formatCurrency';
 import { formatProductDisplayName } from '../utils/transliterate';
@@ -7,7 +8,7 @@ import { exportReportToExcel } from '../utils/exportExcel';
 import SmartAmountText from '../components/ui/SmartAmountText';
 import PageHeader from '../components/layout/PageHeader';
 import EmptyState from '../components/ui/EmptyState';
-import { FileSpreadsheet } from 'lucide-react';
+import { FileSpreadsheet, Maximize2, Minimize2, X } from 'lucide-react';
 import db from '../db/database';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
@@ -333,6 +334,7 @@ export default function Reports() {
   const [topProducts, setTopProducts] = useState([]);
   const [selectedBatchId, setSelectedBatchId] = useState(null);
   const [selectedSalesGroup, setSelectedSalesGroup] = useState(null);
+  const [maximizedChart, setMaximizedChart] = useState(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
 
@@ -871,20 +873,45 @@ export default function Reports() {
                       👉 {language === 'ta' ? 'அனைத்து விவரங்களையும் பார்க்க நகர்த்தவும்' : 'Scroll horizontally to view all'}
                     </div>
                   )}
-                  {/* Compact circular dot legend outside/below chart */}
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.profit }} />
-                      <span>{t.profitLabel || 'Profit'}</span>
+                  {/* Compact circular dot legend outside/below chart with Maximize Button */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, flexWrap: 'wrap', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.profit }} />
+                        <span>{t.profitLabel || 'Profit'}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.sales }} />
+                        <span>{t.salesLabel || 'Sales'}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.loss }} />
+                        <span>{t.lossLabel || t.loss || 'Loss'}</span>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.sales }} />
-                      <span>{t.salesLabel || 'Sales'}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.loss }} />
-                      <span>{t.lossLabel || t.loss || 'Loss'}</span>
-                    </div>
+                    <button
+                      onClick={() => setMaximizedChart('salesProfit')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        padding: '6px 12px',
+                        background: 'var(--color-primary-bg, #F2ECFE)',
+                        border: '1px solid var(--color-primary-light, #7E47FA)',
+                        borderRadius: 'var(--radius-md, 12px)',
+                        color: 'var(--color-primary, #5B1EE6)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        marginLeft: 'auto',
+                      }}
+                      title={language === 'ta' ? 'பெரிதாக்கு (முழுத்திரை)' : 'Maximize View'}
+                      id="btn-maximize-sales-chart"
+                    >
+                      <Maximize2 size={14} />
+                      <span>{language === 'ta' ? 'பெரிதாக்கு' : 'Maximize'}</span>
+                    </button>
                   </div>
                 </>
               ) : (
@@ -1106,20 +1133,45 @@ export default function Reports() {
                       👉 {language === 'ta' ? 'அனைத்து தொகுதிகளையும் பார்க்க நகர்த்தவும்' : 'Scroll horizontally to view all'}
                     </div>
                   )}
-                  {/* Left-aligned one-by-one legend */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, marginTop: 16, paddingLeft: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                      <div style={{ width: 8, height: 8, borderRadius: 2, background: C.completed }} />
-                      <span>{t.completedProfitLegend || 'Completed Batch with Profit'}</span>
+                  {/* Left-aligned one-by-one legend with Maximize Button */}
+                  <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: 16, flexWrap: 'wrap', gap: 8 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, paddingLeft: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: 2, background: C.completed }} />
+                        <span>{t.completedProfitLegend || 'Completed Batch with Profit'}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: 2, background: C.batch }} />
+                        <span>{t.stillSellingBadge || 'Still Selling'}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: 2, background: C.loss }} />
+                        <span>{t.completedLossLegend || 'Completed Batch with Loss'}</span>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                      <div style={{ width: 8, height: 8, borderRadius: 2, background: C.batch }} />
-                      <span>{t.stillSellingBadge || 'Still Selling'}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                      <div style={{ width: 8, height: 8, borderRadius: 2, background: C.loss }} />
-                      <span>{t.completedLossLegend || 'Completed Batch with Loss'}</span>
-                    </div>
+                    <button
+                      onClick={() => setMaximizedChart('batchProfit')}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        padding: '6px 12px',
+                        background: 'var(--color-primary-bg, #F2ECFE)',
+                        border: '1px solid var(--color-primary-light, #7E47FA)',
+                        borderRadius: 'var(--radius-md, 12px)',
+                        color: 'var(--color-primary, #5B1EE6)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        marginLeft: 'auto',
+                      }}
+                      title={language === 'ta' ? 'பெரிதாக்கு (முழுத்திரை)' : 'Maximize View'}
+                      id="btn-maximize-batch-chart"
+                    >
+                      <Maximize2 size={14} />
+                      <span>{language === 'ta' ? 'பெரிதாக்கு' : 'Maximize'}</span>
+                    </button>
                   </div>
                 </>
               ) : (
@@ -1215,6 +1267,533 @@ export default function Reports() {
             </div>
           )}
         </>
+      )}
+
+      {/* ── Maximized Chart Fullscreen Modal with Blurred Backdrop ── */}
+      {maximizedChart && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            boxSizing: 'border-box',
+          }}
+          onClick={() => setMaximizedChart(null)}
+          id="modal-maximized-chart-backdrop"
+        >
+          <div
+            style={{
+              background: 'var(--color-surface, #ffffff)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-2xl, 24px)',
+              width: '100%',
+              maxWidth: 760,
+              maxHeight: '92vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.45)',
+              padding: '20px',
+              boxSizing: 'border-box',
+              overflowY: 'auto',
+            }}
+            onClick={(e) => e.stopPropagation()}
+            id="modal-maximized-chart-content"
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: 18, color: 'var(--color-text)' }}>
+                  {maximizedChart === 'salesProfit'
+                    ? `📊 ${t.salesProfitTrend || 'Sales & Profit'}`
+                    : `📦 ${t.batchProfitChart || 'Batch Profit Analytics'}`}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                  {maximizedChart === 'salesProfit'
+                    ? (t.salesProfitSub || 'Tap any bar to inspect sales & profit/loss details')
+                    : (t.batchProfitChartSub || 'Profit earned from each purchase batch')}
+                </div>
+              </div>
+              <button
+                onClick={() => setMaximizedChart(null)}
+                style={{
+                  background: 'var(--color-bg, #f1f5f9)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: 36,
+                  height: 36,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: 'var(--color-text)',
+                  transition: 'all 0.2s',
+                }}
+                aria-label="Close"
+                id="btn-close-maximized-chart"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Maximized Sales & Profit Chart */}
+            {maximizedChart === 'salesProfit' && (
+              <div>
+                <div style={{ display: 'flex', width: '100%', height: 320, position: 'relative' }}>
+                  {/* Fixed Left Y-Axis */}
+                  <div className="chart-y-axis-fixed" style={{ width: 52, height: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={salesAxisConfig.dummyData}
+                        margin={{ top: 8, right: 0, left: -6, bottom: 24 }}
+                      >
+                        <YAxis
+                          domain={[salesAxisConfig.yMin, salesAxisConfig.yMax]}
+                          ticks={salesAxisConfig.ticks}
+                          tick={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            fill: 'var(--color-text-secondary, #475569)',
+                          }}
+                          axisLine={false}
+                          tickLine={false}
+                          tickFormatter={salesAxisConfig.tickFormatter}
+                          width={52}
+                        />
+                        <Bar dataKey="dummy" fill="transparent" isAnimationActive={false} stroke="none" strokeWidth={0} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Scrollable Right Bar Chart Area */}
+                  <div
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      overflowX: 'auto',
+                      overflowY: 'hidden',
+                      scrollbarWidth: 'thin',
+                      WebkitOverflowScrolling: 'touch',
+                      paddingBottom: 4,
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: 'relative',
+                        width:
+                          salesProfitData.length > 5
+                            ? `${Math.max(340, salesProfitData.length * 68)}px`
+                            : '100%',
+                        minWidth: '100%',
+                        height: 320,
+                      }}
+                    >
+                      {/* Tooltip */}
+                      {(() => {
+                        if (!selectedSalesGroup) return null;
+                        const activeItem = salesProfitData.find((d) => d.label === selectedSalesGroup);
+                        if (!activeItem) return null;
+                        const idx = salesProfitData.findIndex((d) => d.label === selectedSalesGroup);
+                        const total = salesProfitData.length;
+                        const pct = total > 0 ? ((idx + 0.5) / total) * 100 : 50;
+                        const posStyle =
+                          pct < 20
+                            ? { left: `${Math.max(4, pct)}%`, transform: 'translateX(0)' }
+                            : pct > 80
+                            ? { left: `${Math.min(96, pct)}%`, transform: 'translateX(-100%)' }
+                            : { left: `${pct}%`, transform: 'translateX(-50%)' };
+
+                        const isLoss = Number(activeItem.profit || 0) < 0;
+
+                        return (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              ...posStyle,
+                              top: 6,
+                              background: 'var(--color-surface, #ffffff)',
+                              border: '1px solid var(--color-border, #e2e8f0)',
+                              borderRadius: 10,
+                              padding: '8px 12px',
+                              boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+                              minWidth: 125,
+                              zIndex: 20,
+                              pointerEvents: 'none',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 4, fontWeight: 700 }}>
+                              {activeItem.label}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.sales }} />
+                              <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>{t.salesLabel || 'Sales'}:</span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)' }}>
+                                ₹{Number(activeItem.sales || 0).toLocaleString('en-IN')}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: isLoss ? C.loss : C.profit }} />
+                              <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                                {isLoss ? (t.lossLabel || t.loss || 'Loss') : (t.profitLabel || 'Profit')}:
+                              </span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: isLoss ? C.loss : 'var(--color-text)' }}>
+                                ₹{Math.abs(Number(activeItem.profit || 0)).toLocaleString('en-IN')}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={salesProfitData}
+                          margin={{ top: 8, right: 16, left: 0, bottom: 24 }}
+                          barGap={6}
+                        >
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="var(--color-border)"
+                            vertical={false}
+                          />
+                          <ReferenceLine y={0} stroke="var(--color-border-dark, #94A3B8)" strokeWidth={1.5} />
+                          <XAxis
+                            dataKey="label"
+                            tick={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              fill: 'var(--color-text-tertiary)',
+                            }}
+                            axisLine={false}
+                            tickLine={false}
+                            interval={0}
+                            height={24}
+                          />
+                          <YAxis
+                            domain={[salesAxisConfig.yMin, salesAxisConfig.yMax]}
+                            ticks={salesAxisConfig.ticks}
+                            hide={true}
+                          />
+                          <Bar
+                            dataKey="sales"
+                            name={t.salesLabel || 'Sales'}
+                            fill={C.sales}
+                            maxBarSize={32}
+                            isAnimationActive={false}
+                            shape={(props) => {
+                              const { x, y, width, height, payload } = props;
+                              if (!width || width <= 0) return null;
+                              const barHeight = Math.abs(height || 0);
+                              if (barHeight <= 0) return null;
+                              const isSelected = selectedSalesGroup === payload?.label;
+                              const r = Math.min(6, Math.max(0, width / 2), barHeight);
+                              const d = `M ${x},${y + barHeight} L ${x},${y + r} Q ${x},${y} ${x + r},${y} L ${x + width - r},${y} Q ${x + width},${y} ${x + width},${y + r} L ${x + width},${y + barHeight} Z`;
+                              return (
+                                <path
+                                  d={d}
+                                  fill={C.sales}
+                                  stroke={isSelected ? '#000000' : 'none'}
+                                  strokeWidth={isSelected ? 2 : 0}
+                                  strokeLinejoin="round"
+                                  strokeLinecap="round"
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={(e) => {
+                                    if (e && e.stopPropagation) e.stopPropagation();
+                                    if (payload?.label) {
+                                      setSelectedSalesGroup((prev) => (prev === payload.label ? null : payload.label));
+                                    }
+                                  }}
+                                />
+                              );
+                            }}
+                          />
+                          <Bar
+                            dataKey="profit"
+                            name={t.profitLabel || 'Profit'}
+                            fill={C.profit}
+                            maxBarSize={32}
+                            isAnimationActive={false}
+                            shape={(props) => {
+                              const { x, y, width, height, payload } = props;
+                              if (!width || width <= 0) return null;
+                              const barHeight = Math.abs(height || 0);
+                              if (barHeight <= 0) return null;
+                              const isSelected = selectedSalesGroup === payload?.label;
+                              const isNegative = Number(payload?.profit || 0) < 0;
+                              const fill = isNegative ? C.loss : C.profit;
+                              const r = Math.min(6, Math.max(0, width / 2), barHeight);
+
+                              let d;
+                              if (isNegative) {
+                                d = `M ${x},${y} L ${x + width},${y} L ${x + width},${y + barHeight - r} Q ${x + width},${y + barHeight} ${x + width - r},${y + barHeight} L ${x + r},${y + barHeight} Q ${x},${y + barHeight} ${x},${y + barHeight - r} Z`;
+                              } else {
+                                d = `M ${x},${y + barHeight} L ${x},${y + r} Q ${x},${y} ${x + r},${y} L ${x + width - r},${y} Q ${x + width},${y} ${x + width},${y + r} L ${x + width},${y + barHeight} Z`;
+                              }
+
+                              return (
+                                <path
+                                  d={d}
+                                  fill={fill}
+                                  stroke={isSelected ? '#000000' : 'none'}
+                                  strokeWidth={isSelected ? 2 : 0}
+                                  strokeLinejoin="round"
+                                  strokeLinecap="round"
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={(e) => {
+                                    if (e && e.stopPropagation) e.stopPropagation();
+                                    if (payload?.label) {
+                                      setSelectedSalesGroup((prev) => (prev === payload.label ? null : payload.label));
+                                    }
+                                  }}
+                                />
+                              );
+                            }}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Legend */}
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginTop: 16, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: C.profit }} />
+                    <span>{t.profitLabel || 'Profit'}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: C.sales }} />
+                    <span>{t.salesLabel || 'Sales'}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: C.loss }} />
+                    <span>{t.lossLabel || t.loss || 'Loss'}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Maximized Batch Profit Chart */}
+            {maximizedChart === 'batchProfit' && (
+              <div>
+                <div style={{ display: 'flex', width: '100%', height: 340, position: 'relative' }}>
+                  {/* Fixed Left Y-Axis */}
+                  <div className="chart-y-axis-fixed" style={{ width: 52, height: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={batchAxisConfig.dummyData}
+                        margin={{ top: 8, right: 0, left: -6, bottom: 70 }}
+                      >
+                        <YAxis
+                          domain={[batchAxisConfig.yMin, batchAxisConfig.yMax]}
+                          ticks={batchAxisConfig.ticks}
+                          tick={{
+                            fontSize: 12,
+                            fontWeight: 700,
+                            fill: 'var(--color-text-secondary, #475569)',
+                          }}
+                          axisLine={false}
+                          tickLine={false}
+                          tickFormatter={batchAxisConfig.tickFormatter}
+                          width={52}
+                        />
+                        <Bar dataKey="dummy" fill="transparent" isAnimationActive={false} stroke="none" strokeWidth={0} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* Scrollable Right Bar Chart Area */}
+                  <div
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      overflowX: 'auto',
+                      overflowY: 'hidden',
+                      scrollbarWidth: 'thin',
+                      WebkitOverflowScrolling: 'touch',
+                      paddingBottom: 4,
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: 'relative',
+                        width:
+                          batchData.length > 4
+                            ? `${Math.max(340, batchData.length * 72)}px`
+                            : '100%',
+                        minWidth: '100%',
+                        height: 340,
+                      }}
+                    >
+                      {/* Tooltip */}
+                      {(() => {
+                        if (selectedBatchId === null || selectedBatchId === undefined) return null;
+                        const activeBatch = batchData.find((b) => (b.id ?? b.batchId) === selectedBatchId);
+                        if (!activeBatch) return null;
+                        const idx = batchData.findIndex((b) => (b.id ?? b.batchId) === selectedBatchId);
+                        const total = batchData.length;
+                        const pct = total > 0 ? ((idx + 0.5) / total) * 100 : 50;
+                        const posStyle =
+                          pct < 20
+                            ? { left: `${Math.max(4, pct)}%`, transform: 'translateX(0)' }
+                            : pct > 80
+                            ? { left: `${Math.min(96, pct)}%`, transform: 'translateX(-100%)' }
+                            : { left: `${pct}%`, transform: 'translateX(-50%)' };
+
+                        const netVal = Number(activeBatch.realizedProfit || 0);
+                        const isNegative = netVal < 0;
+                        const dotColor = isNegative ? C.loss : (activeBatch.status === 'completed' ? C.completed : C.batch);
+
+                        return (
+                          <div
+                            style={{
+                              position: 'absolute',
+                              ...posStyle,
+                              top: 6,
+                              background: 'var(--color-surface, #ffffff)',
+                              border: '1px solid var(--color-border, #e2e8f0)',
+                              borderRadius: 10,
+                              padding: '8px 12px',
+                              boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
+                              minWidth: 120,
+                              zIndex: 20,
+                              pointerEvents: 'none',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 4, fontWeight: 700 }}>
+                              {activeBatch.label}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor }} />
+                              <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                                {isNegative ? (t.lossLabel || t.loss || 'Loss') : (t.profitLabel || 'Profit')}:
+                              </span>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: isNegative ? C.loss : 'var(--color-text)' }}>
+                                {isNegative ? '-' : ''}₹{Math.abs(netVal).toLocaleString('en-IN')}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart
+                          data={batchData}
+                          margin={{ top: 8, right: 16, left: 0, bottom: 70 }}
+                        >
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="var(--color-border)"
+                            vertical={false}
+                          />
+                          <ReferenceLine y={0} stroke="var(--color-border-dark, #94A3B8)" strokeWidth={1.5} />
+                          <XAxis
+                            dataKey="label"
+                            tick={(props) => {
+                              const { x, y, payload } = props;
+                              return (
+                                <g transform={`translate(${x},${y + 4})`}>
+                                  <text
+                                    x={0}
+                                    y={0}
+                                    dy={4}
+                                    textAnchor="end"
+                                    fill="var(--color-text-secondary, #64748B)"
+                                    fontSize={11}
+                                    fontWeight={700}
+                                    transform="rotate(-90)"
+                                  >
+                                    {payload?.value || ''}
+                                  </text>
+                                </g>
+                              );
+                            }}
+                            axisLine={false}
+                            tickLine={false}
+                            interval={0}
+                            height={70}
+                          />
+                          <YAxis
+                            domain={[batchAxisConfig.yMin, batchAxisConfig.yMax]}
+                            ticks={batchAxisConfig.ticks}
+                            hide={true}
+                          />
+                          <Bar
+                            dataKey="realizedProfit"
+                            name={t.profitLabel || 'Profit'}
+                            maxBarSize={36}
+                            isAnimationActive={false}
+                            shape={(props) => {
+                              const { x, y, width, height, payload } = props;
+                              if (!width || width <= 0) return null;
+                              const barHeight = Math.abs(height || 0);
+                              if (barHeight <= 0) return null;
+                              const itemKey = payload?.id ?? payload?.batchId;
+                              const isSelected = selectedBatchId !== null && selectedBatchId !== undefined && selectedBatchId === itemKey;
+                              const isNegative = Number(payload?.realizedProfit || 0) < 0;
+                              const fill = isNegative ? C.loss : (payload?.status === 'completed' ? C.completed : C.batch);
+                              const r = Math.min(6, Math.max(0, width / 2), barHeight);
+
+                              let d;
+                              if (isNegative) {
+                                d = `M ${x},${y} L ${x + width},${y} L ${x + width},${y + barHeight - r} Q ${x + width},${y + barHeight} ${x + width - r},${y + barHeight} L ${x + r},${y + barHeight} Q ${x},${y + barHeight} ${x},${y + barHeight - r} Z`;
+                              } else {
+                                d = `M ${x},${y + barHeight} L ${x},${y + r} Q ${x},${y} ${x + r},${y} L ${x + width - r},${y} Q ${x + width},${y} ${x + width},${y + r} L ${x + width},${y + barHeight} Z`;
+                              }
+
+                              return (
+                                <path
+                                  d={d}
+                                  fill={fill}
+                                  stroke={isSelected ? '#000000' : 'none'}
+                                  strokeWidth={isSelected ? 2 : 0}
+                                  strokeLinejoin="round"
+                                  strokeLinecap="round"
+                                  style={{ cursor: 'pointer' }}
+                                  onClick={(e) => {
+                                    if (e && e.stopPropagation) e.stopPropagation();
+                                    const key = payload?.id ?? payload?.batchId;
+                                    if (key !== undefined && key !== null) {
+                                      setSelectedBatchId((prev) => (prev === key ? null : key));
+                                    }
+                                  }}
+                                />
+                              );
+                            }}
+                          />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Left-aligned one-by-one legend */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, marginTop: 16, paddingLeft: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 2, background: C.completed }} />
+                    <span>{t.completedProfitLegend || 'Completed Batch with Profit'}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 2, background: C.batch }} />
+                    <span>{t.stillSellingBadge || 'Still Selling'}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 2, background: C.loss }} />
+                    <span>{t.completedLossLegend || 'Completed Batch with Loss'}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
