@@ -45,43 +45,52 @@ export function BusinessProvider({ children }) {
 
   // ---- Refresh data from DB ----
   const refreshData = useCallback(async () => {
-    const [prods, sls, si, btch, exps, custs, pymts, summaries, sv] = await Promise.all([
-      db.products.toArray(),
-      db.sales.orderBy('date').reverse().toArray(),
-      db.saleItems.toArray(),
-      db.purchaseBatches.orderBy('date').reverse().toArray(),
-      db.expenses.orderBy('date').reverse().toArray(),
-      db.customers.toArray(),
-      db.customerPayments.toArray(),
-      getAllProductSummaries(),
-      getTotalStockValue(),
-    ]);
-    setProducts(prods);
-    setSales(sls);
-    setSaleItems(si);
-    setBatches(btch);
-    setExpenses(exps);
-    setCustomers(custs);
-    setCustomerPayments(pymts);
-    setProductSummaries(summaries);
-    setStockValue(sv.stockValue);
-    setStockCost(sv.stockCost);
+    try {
+      const [prods, sls, si, btch, exps, custs, pymts, summaries, sv] = await Promise.all([
+        db.products.toArray(),
+        db.sales.orderBy('date').reverse().toArray(),
+        db.saleItems.toArray(),
+        db.purchaseBatches.orderBy('date').reverse().toArray(),
+        db.expenses.orderBy('date').reverse().toArray(),
+        db.customers.toArray(),
+        db.customerPayments.toArray(),
+        getAllProductSummaries(),
+        getTotalStockValue(),
+      ]);
+      setProducts(prods || []);
+      setSales(sls || []);
+      setSaleItems(si || []);
+      setBatches(btch || []);
+      setExpenses(exps || []);
+      setCustomers(custs || []);
+      setCustomerPayments(pymts || []);
+      setProductSummaries(summaries || []);
+      setStockValue(sv?.stockValue || 0);
+      setStockCost(sv?.stockCost || 0);
+    } catch (err) {
+      console.error('Error refreshing business data:', err);
+    }
   }, []);
 
   // ---- Init ----
   useEffect(() => {
     async function init() {
-      const settings = await db.settings.get('main');
-      if (!settings) {
-        await db.settings.put({ id: 'main', onboarded: true, language: 'en' });
+      try {
+        const settings = await db.settings.get('main');
+        if (!settings) {
+          await db.settings.put({ id: 'main', onboarded: true, language: 'en' });
+        }
+        setOnboarded(true);
+        if (settings?.language) {
+          setLanguage(settings.language);
+          localStorage.setItem('my_dukaan_lang', settings.language);
+        }
+        await refreshData();
+      } catch (err) {
+        console.error('Error initializing business context:', err);
+      } finally {
+        setLoading(false);
       }
-      setOnboarded(true);
-      if (settings?.language) {
-        setLanguage(settings.language);
-        localStorage.setItem('my_dukaan_lang', settings.language);
-      }
-      await refreshData();
-      setLoading(false);
     }
     init();
   }, [refreshData]);
