@@ -10,7 +10,7 @@ import { FileSpreadsheet } from 'lucide-react';
 import db from '../db/database';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer,
-  Legend, ReferenceLine
+  ReferenceLine
 } from 'recharts';
 
 /* ─── Palette ─────────────────────────────────────────── */
@@ -23,6 +23,36 @@ const C = {
   completed:'#10B981',
   stock:    '#0EA5E9',
 };
+
+/* ─── Smart Rupee Chart Axis Formatter ─────────────────── */
+function createChartAxisFormatter(maxVal = 0) {
+  const absMax = Math.abs(Number(maxVal) || 0);
+
+  if (absMax >= 1000000) {
+    return (val) => {
+      const num = Number(val) || 0;
+      if (num === 0) return '₹0';
+      const mVal = num / 1000000;
+      const formatted = mVal % 1 === 0 ? mVal.toFixed(0) : mVal.toFixed(1).replace(/\.0$/, '');
+      return `${num < 0 ? '-' : ''}₹${Math.abs(Number(formatted))}M`;
+    };
+  }
+
+  if (absMax >= 1000) {
+    return (val) => {
+      const num = Number(val) || 0;
+      if (num === 0) return '₹0';
+      const kVal = num / 1000;
+      const formatted = kVal % 1 === 0 ? kVal.toFixed(0) : kVal.toFixed(1).replace(/\.0$/, '');
+      return `${num < 0 ? '-' : ''}₹${Math.abs(Number(formatted))}K`;
+    };
+  }
+
+  return (val) => {
+    const num = Number(val) || 0;
+    return `${num < 0 ? '-' : ''}₹${Math.abs(num)}`;
+  };
+}
 
 /* ─── Axis Config Generator ───────────────────────────── */
 function calcYAxisConfig(data = [], keys = []) {
@@ -68,7 +98,6 @@ function calcYAxisConfig(data = [], keys = []) {
     for (let t = yMin; t <= yMax; t += step) {
       ticks.push(t);
     }
-    return { yMin, yMax, ticks, dummyData: [{ dummy: yMax }, { dummy: yMin }] };
   } else if (min < 0 && max <= 0) {
     const negSteps = Math.max(1, Math.ceil(Math.abs(min) / step));
     yMin = -(negSteps * step);
@@ -76,7 +105,6 @@ function calcYAxisConfig(data = [], keys = []) {
     for (let t = yMin; t <= 0; t += step) {
       ticks.push(t);
     }
-    return { yMin, yMax, ticks, dummyData: [{ dummy: 0 }, { dummy: yMin }] };
   } else {
     // Only positive or zero
     const posSteps = Math.max(1, Math.ceil(effectiveMax / step));
@@ -85,8 +113,18 @@ function calcYAxisConfig(data = [], keys = []) {
     for (let t = 0; t <= yMax; t += step) {
       ticks.push(t);
     }
-    return { yMin, yMax, ticks, dummyData: [{ dummy: yMax }, { dummy: 0 }] };
   }
+
+  const axisLimit = Math.max(Math.abs(yMin), Math.abs(yMax));
+  const tickFormatter = createChartAxisFormatter(axisLimit);
+
+  return {
+    yMin,
+    yMax,
+    ticks,
+    tickFormatter,
+    dummyData: [{ dummy: yMax }, { dummy: yMin }],
+  };
 }
 
 /* ─── Custom Tooltip ─────────────────────────────────── */
@@ -618,7 +656,7 @@ export default function Reports() {
                             }}
                             axisLine={false}
                             tickLine={false}
-                            tickFormatter={fmtK}
+                            tickFormatter={salesAxisConfig.tickFormatter}
                             width={48}
                           />
                           <Bar dataKey="dummy" fill="transparent" isAnimationActive={false} stroke="none" strokeWidth={0} />
@@ -710,7 +748,7 @@ export default function Reports() {
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart
                             data={salesProfitData}
-                            margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                            margin={{ top: 8, right: 16, left: 0, bottom: 24 }}
                             barGap={4}
                           >
                             <CartesianGrid
@@ -735,11 +773,6 @@ export default function Reports() {
                               domain={[salesAxisConfig.yMin, salesAxisConfig.yMax]}
                               ticks={salesAxisConfig.ticks}
                               hide={true}
-                            />
-                            <Legend
-                              iconType="circle"
-                              iconSize={8}
-                              wrapperStyle={{ fontSize: 12, paddingTop: 4 }}
                             />
                             <Bar
                               dataKey="sales"
@@ -831,8 +864,20 @@ export default function Reports() {
                       👉 {language === 'ta' ? 'அனைத்து விவரங்களையும் பார்க்க நகர்த்தவும்' : 'Scroll horizontally to view all'}
                     </div>
                   )}
-                  <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--color-surface-2)', borderRadius: 10, fontSize: 12, color: 'var(--color-text-secondary)' }}>
-                    💡 {t.salesProfitLegendHint || 'Purple = total sales | Green = profit | Red = loss'}
+                  {/* Compact circular dot legend outside/below chart */}
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.profit }} />
+                      <span>{t.profitLabel || 'Profit'}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.sales }} />
+                      <span>{t.salesLabel || 'Sales'}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.loss }} />
+                      <span>{t.lossLabel || t.loss || 'Loss'}</span>
+                    </div>
                   </div>
                 </>
               ) : (
@@ -847,7 +892,7 @@ export default function Reports() {
           <div style={{ marginBottom: 'var(--space-2xl)' }}>
             <SectionTitle
               title={`📦 ${t.batchProfitChart || 'Batch Profit Chart'}`}
-              subtitle={t.batchProfitChartSub || 'Profit earned from each purchase batch (tap a bar for details)'}
+              subtitle={t.batchProfitChartSub || 'Profit earned from each purchase batch'}
             />
             <ChartCard>
               {batchData.length > 0 ? (
@@ -870,7 +915,7 @@ export default function Reports() {
                             }}
                             axisLine={false}
                             tickLine={false}
-                            tickFormatter={fmtK}
+                            tickFormatter={batchAxisConfig.tickFormatter}
                             width={48}
                           />
                           <Bar dataKey="dummy" fill="transparent" isAnimationActive={false} stroke="none" strokeWidth={0} />
@@ -912,7 +957,7 @@ export default function Reports() {
                           const pct = total > 0 ? ((idx + 0.5) / total) * 100 : 50;
                           const posStyle =
                             pct < 20
-                               ? { left: `${Math.max(4, pct)}%`, transform: 'translateX(0)' }
+                              ? { left: `${Math.max(4, pct)}%`, transform: 'translateX(0)' }
                               : pct > 80
                               ? { left: `${Math.min(96, pct)}%`, transform: 'translateX(-100%)' }
                               : { left: `${pct}%`, transform: 'translateX(-50%)' };
@@ -957,7 +1002,7 @@ export default function Reports() {
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart
                             data={batchData}
-                            margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                            margin={{ top: 8, right: 16, left: 0, bottom: 24 }}
                           >
                             <CartesianGrid
                               strokeDasharray="3 3"
@@ -1040,22 +1085,20 @@ export default function Reports() {
                       👉 {language === 'ta' ? 'அனைத்து தொகுதிகளையும் பார்க்க நகர்த்தவும்' : 'Scroll horizontally to view all'}
                     </div>
                   )}
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
-                    {[
-                      { color: C.completed, label: `✅ ${t.batchSoldOut || 'Batch Sold Out'}` },
-                      { color: C.batch, label: `🔄 ${t.stillSellingBadge || 'Still Selling'}` },
-                      ...(batchData.some((b) => Number(b.totalLoss || 0) > 0)
-                        ? [{ color: C.loss, label: `🔻 ${t.loss || 'Loss'}` }]
-                        : []),
-                    ].map((l) => (
-                      <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--color-text-secondary)' }}>
-                        <div style={{ width: 10, height: 10, borderRadius: 3, background: l.color }} />
-                        {l.label}
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ marginTop: 10, padding: '8px 12px', background: 'var(--color-surface-2)', borderRadius: 10, fontSize: 12, color: 'var(--color-text-secondary)', textAlign: 'center' }}>
-                    👆 {t.tapBarForDetails || 'Tap any bar to see batch details'}
+                  {/* Compact square indicator legend outside/below chart */}
+                  <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: 2, background: C.completed }} />
+                      <span>{t.completedProfitLegend || 'Completed Batch with Profit'}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: 2, background: C.batch }} />
+                      <span>{t.stillSellingBadge || 'Still Selling'}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: 2, background: C.loss }} />
+                      <span>{t.completedLossLegend || 'Completed Batch with Loss'}</span>
+                    </div>
                   </div>
                 </>
               ) : (
