@@ -36,12 +36,20 @@ export async function getBatchProfitData() {
         date: batch.date,
         label: `#${batch.batchNumber} (${getShortDate(batch.date)})`,
         realizedProfit: metrics.realizedProfit,
+        totalItemProfit: metrics.totalItemProfit,
+        totalLoss: metrics.totalLoss,
+        // For chart: profit bar (always >= 0) and loss bar (always <= 0)
+        chartProfit: metrics.totalItemProfit,
+        chartLoss: metrics.totalLoss > 0 ? -metrics.totalLoss : 0,
+        totalDiscount: metrics.totalDiscount,
+        totalExtra: metrics.totalExtra,
         expectedReturn: metrics.totalExpectedReturn,
         expectedRevenue: metrics.expectedRevenue,
         expectedProfit: metrics.expectedProfit,
         profitWithoutDiscount: metrics.profitWithoutDiscount,
         grossProfit: metrics.grossProfit,
         totalProfit: metrics.realizedProfit,
+        totalSales: metrics.totalSales,
         status: metrics.status,
         totalInvestment: metrics.totalInvestment || Number(batch.totalInvestment) || 0,
       });
@@ -109,6 +117,8 @@ export async function getPeriodicSummary(timeframe = 'month', targetDate = new D
     return {
       totalSales: financials.totalSales,
       totalProfit: financials.totalRealizedProfit,
+      totalItemProfit: financials.totalItemProfit,
+      totalLoss: financials.totalLoss,
       totalGrossProfit: financials.totalGrossProfit,
       totalDiscountGiven: financials.totalDiscountGiven,
       totalExpenses: financials.totalExpenses,
@@ -125,6 +135,8 @@ export async function getPeriodicSummary(timeframe = 'month', targetDate = new D
     return {
       totalSales: 0,
       totalProfit: 0,
+      totalItemProfit: 0,
+      totalLoss: 0,
       totalGrossProfit: 0,
       totalDiscountGiven: 0,
       totalExpenses: 0,

@@ -376,7 +376,7 @@ export default function Reports() {
   );
 
   const batchAxisConfig = useMemo(
-    () => calcYAxisConfig(batchData, ['realizedProfit']),
+    () => calcYAxisConfig(batchData, ['chartProfit', 'chartLoss']),
     [batchData]
   );
 
@@ -917,10 +917,10 @@ export default function Reports() {
                               ? { left: `${Math.min(96, pct)}%`, transform: 'translateX(-100%)' }
                               : { left: `${pct}%`, transform: 'translateX(-50%)' };
 
-                          const isLoss = Number(activeBatch.realizedProfit || 0) < 0;
-                          const dotColor = isLoss ? C.loss : (activeBatch.status === 'completed' ? C.completed : C.batch);
-                          const labelText = isLoss ? (t.lossLabel || t.loss || 'Loss') : (t.profitLabel || 'Profit');
-                          const valFormatted = `₹${Math.abs(Number(activeBatch.realizedProfit || 0)).toLocaleString('en-IN')}`;
+                          const profitVal = Number(activeBatch.chartProfit || 0);
+                          const lossVal = Number(activeBatch.totalLoss || 0);
+                          const netVal = Number(activeBatch.realizedProfit || 0);
+                          const dotColor = activeBatch.status === 'completed' ? C.completed : C.batch;
 
                           return (
                             <div
@@ -942,20 +942,37 @@ export default function Reports() {
                               <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 4, fontWeight: 700 }}>
                                 {activeBatch.label}
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <div
-                                  style={{
-                                    width: 8,
-                                    height: 8,
-                                    borderRadius: '50%',
-                                    background: dotColor,
-                                  }}
-                                />
+                              {/* Profit line */}
+                              {profitVal > 0 && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor }} />
+                                  <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                                    {t.profitLabel || 'Profit'}:
+                                  </span>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text)' }}>
+                                    ₹{profitVal.toLocaleString('en-IN')}
+                                  </span>
+                                </div>
+                              )}
+                              {/* Loss line */}
+                              {lossVal > 0 && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: C.loss }} />
+                                  <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                                    {t.lossLabel || t.loss || 'Loss'}:
+                                  </span>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: C.loss }}>
+                                    ₹{lossVal.toLocaleString('en-IN')}
+                                  </span>
+                                </div>
+                              )}
+                              {/* Net result */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, borderTop: '1px solid var(--color-border-light, #e2e8f0)', paddingTop: 3, marginTop: 2 }}>
                                 <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-                                  {labelText}:
+                                  {t.netResult || 'Net'}:
                                 </span>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: isLoss ? C.loss : 'var(--color-text)' }}>
-                                  {valFormatted}
+                                <span style={{ fontSize: 12, fontWeight: 700, color: netVal >= 0 ? 'var(--color-text)' : C.loss }}>
+                                  {netVal >= 0 ? '' : '-'}₹{Math.abs(netVal).toLocaleString('en-IN')}
                                 </span>
                               </div>
                             </div>
@@ -966,6 +983,7 @@ export default function Reports() {
                           <BarChart
                             data={batchData}
                             margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+                            stackOffset="sign"
                           >
                             <CartesianGrid
                               strokeDasharray="3 3"
@@ -990,9 +1008,11 @@ export default function Reports() {
                               ticks={batchAxisConfig.ticks}
                               hide={true}
                             />
+                            {/* Profit bar (above zero) */}
                             <Bar
-                              dataKey="realizedProfit"
+                              dataKey="chartProfit"
                               name={t.profitLabel || 'Profit'}
+                              stackId="batch"
                               maxBarSize={32}
                               isAnimationActive={false}
                               shape={(props) => {
@@ -1002,18 +1022,52 @@ export default function Reports() {
                                 if (barHeight <= 0) return null;
                                 const itemKey = payload?.id ?? payload?.batchId;
                                 const isSelected = selectedBatchId !== null && selectedBatchId !== undefined && selectedBatchId === itemKey;
-                                const isNegative = Number(payload?.realizedProfit || 0) < 0;
-                                const fill = isNegative ? C.loss : (payload?.status === 'completed' ? C.completed : C.batch);
+                                const fill = payload?.status === 'completed' ? C.completed : C.batch;
                                 const r = Math.min(6, Math.max(0, width / 2), barHeight);
 
-                                let d;
-                                if (isNegative) {
-                                  // Bar extends downwards from y (zero line) to y + barHeight with rounded bottom corners
-                                  d = `M ${x},${y} L ${x + width},${y} L ${x + width},${y + barHeight - r} Q ${x + width},${y + barHeight} ${x + width - r},${y + barHeight} L ${x + r},${y + barHeight} Q ${x},${y + barHeight} ${x},${y + barHeight - r} Z`;
-                                } else {
-                                  // Bar extends upwards from zero line (y + barHeight) to y with rounded top corners
-                                  d = `M ${x},${y + barHeight} L ${x},${y + r} Q ${x},${y} ${x + r},${y} L ${x + width - r},${y} Q ${x + width},${y} ${x + width},${y + r} L ${x + width},${y + barHeight} Z`;
-                                }
+                                // Bar extends upwards: rounded top corners
+                                const d = `M ${x},${y + barHeight} L ${x},${y + r} Q ${x},${y} ${x + r},${y} L ${x + width - r},${y} Q ${x + width},${y} ${x + width},${y + r} L ${x + width},${y + barHeight} Z`;
+
+                                return (
+                                  <path
+                                    d={d}
+                                    fill={fill}
+                                    stroke={isSelected ? '#000000' : 'none'}
+                                    strokeWidth={isSelected ? 2 : 0}
+                                    strokeLinejoin="round"
+                                    strokeLinecap="round"
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={(e) => {
+                                      if (e && e.stopPropagation) e.stopPropagation();
+                                      const key = payload?.id ?? payload?.batchId;
+                                      if (key !== undefined && key !== null) {
+                                        setSelectedBatchId((prev) => (prev === key ? null : key));
+                                        setSelectedSalesGroup(null);
+                                      }
+                                    }}
+                                  />
+                                );
+                              }}
+                            />
+                            {/* Loss bar (below zero) */}
+                            <Bar
+                              dataKey="chartLoss"
+                              name={t.lossLabel || t.loss || 'Loss'}
+                              stackId="batch"
+                              maxBarSize={32}
+                              isAnimationActive={false}
+                              shape={(props) => {
+                                const { x, y, width, height, payload } = props;
+                                if (!width || width <= 0) return null;
+                                const barHeight = Math.abs(height || 0);
+                                if (barHeight <= 0) return null;
+                                const itemKey = payload?.id ?? payload?.batchId;
+                                const isSelected = selectedBatchId !== null && selectedBatchId !== undefined && selectedBatchId === itemKey;
+                                const fill = C.loss;
+                                const r = Math.min(6, Math.max(0, width / 2), barHeight);
+
+                                // Bar extends downwards: rounded bottom corners
+                                const d = `M ${x},${y} L ${x + width},${y} L ${x + width},${y + barHeight - r} Q ${x + width},${y + barHeight} ${x + width - r},${y + barHeight} L ${x + r},${y + barHeight} Q ${x},${y + barHeight} ${x},${y + barHeight - r} Z`;
 
                                 return (
                                   <path
@@ -1051,7 +1105,7 @@ export default function Reports() {
                     {[
                       { color: C.completed, label: `✅ ${t.batchSoldOut || 'Batch Sold Out'}` },
                       { color: C.batch, label: `🔄 ${t.stillSellingBadge || 'Still Selling'}` },
-                      ...(batchData.some((b) => Number(b.realizedProfit || 0) < 0)
+                      ...(batchData.some((b) => Number(b.totalLoss || 0) > 0)
                         ? [{ color: C.loss, label: `🔻 ${t.loss || 'Loss'}` }]
                         : []),
                     ].map((l) => (

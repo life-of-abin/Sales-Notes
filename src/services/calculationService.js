@@ -183,6 +183,8 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
   let totalDiscount = 0;
   let totalExtra = 0;
   let totalRealizedProfit = 0;
+  let totalItemProfit = 0;
+  let totalLoss = 0;
   let totalPurchasedQty = 0;
   let totalSoldQty = 0;
   let totalRemainingQty = 0;
@@ -203,6 +205,8 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
     let lotDiscount = 0;
     let lotExtra = 0;
     let lotRealizedProfit = 0;
+    let lotItemProfit = 0;
+    let lotLoss = 0;
     let lotSoldQty = 0;
 
     for (const a of lotAllocs) {
@@ -224,6 +228,12 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
       lotDiscount += aCalc.totalDiscount;
       lotExtra += aCalc.totalExtra;
       lotRealizedProfit += aCalc.realizedProfit;
+      // Separate profit (positive) and loss (negative) tracking
+      if (aCalc.realizedProfit >= 0) {
+        lotItemProfit += aCalc.realizedProfit;
+      } else {
+        lotLoss += Math.abs(aCalc.realizedProfit);
+      }
     }
 
     // If there were no allocation records but remainingQty reflects sales
@@ -241,6 +251,13 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
       lotDiscount = fallbackCalc.totalDiscount;
       lotExtra = fallbackCalc.totalExtra;
       lotRealizedProfit = fallbackCalc.realizedProfit;
+      if (fallbackCalc.realizedProfit >= 0) {
+        lotItemProfit = fallbackCalc.realizedProfit;
+        lotLoss = 0;
+      } else {
+        lotItemProfit = 0;
+        lotLoss = Math.abs(fallbackCalc.realizedProfit);
+      }
     }
 
     const lotInvestment = roundCurrency(pQty * bPrice);
@@ -256,6 +273,8 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
     totalDiscount += lotDiscount;
     totalExtra += lotExtra;
     totalRealizedProfit += lotRealizedProfit;
+    totalItemProfit += lotItemProfit;
+    totalLoss += lotLoss;
     totalPurchasedQty += pQty;
     totalSoldQty += lotSoldQty;
     totalRemainingQty += rQty;
@@ -288,6 +307,8 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
       profitWithoutDiscount: lotProfitWithoutDiscount,
       grossProfit: lotProfitWithoutDiscount,
       realizedProfit: roundCurrency(lotRealizedProfit),
+      totalItemProfit: roundCurrency(lotItemProfit),
+      totalLoss: roundCurrency(lotLoss),
       expectedReturn: lotExpectedReturn,
       expectedRevenue: lotExpectedRevenue,
       expectedProfit: lotExpectedProfit,
@@ -319,6 +340,8 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
     profitWithoutDiscount: roundCurrency(totalProfitWithoutDiscount),
     grossProfit: roundCurrency(totalProfitWithoutDiscount), // backward compatibility
     realizedProfit: roundCurrency(totalRealizedProfit),
+    totalItemProfit: roundCurrency(totalItemProfit),
+    totalLoss: roundCurrency(totalLoss),
     expectedRevenue: roundCurrency(totalExpectedRevenue),
     expectedProfit: roundCurrency(totalExpectedProfit),
     totalExpectedProfit: roundCurrency(totalExpectedProfit),
@@ -345,6 +368,20 @@ export function calculatePeriodFinancials({
   const totalRealizedProfit = roundCurrency(
     sales.reduce((sum, s) => sum + (Number(s.totalProfit) || Number(s.realizedProfit) || 0), 0)
   );
+
+  // Separate positive profits and losses
+  let periodItemProfit = 0;
+  let periodLoss = 0;
+  sales.forEach((s) => {
+    const p = Number(s.totalProfit) || Number(s.realizedProfit) || 0;
+    if (p >= 0) {
+      periodItemProfit += p;
+    } else {
+      periodLoss += Math.abs(p);
+    }
+  });
+  const totalItemProfit = roundCurrency(periodItemProfit);
+  const totalLoss = roundCurrency(periodLoss);
 
   const totalDiscountGiven = roundCurrency(
     sales.reduce((sum, s) => sum + (Number(s.discount) || Number(s.totalDiscount) || 0), 0)
@@ -402,6 +439,8 @@ export function calculatePeriodFinancials({
     realizedProfit: totalRealizedProfit,
     totalRealizedProfit,
     totalProfit: totalRealizedProfit,
+    totalItemProfit,
+    totalLoss,
     totalGrossProfit,
     totalExpenses,
     netProfit,

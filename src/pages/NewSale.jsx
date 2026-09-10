@@ -326,15 +326,31 @@ export default function NewSale() {
               <span className="summary-row-label">{t.finalPrice || t.actualSalePrice}:</span>
               <span className="summary-row-value">{formatCurrency(actualSalePrice)} / {t.piece || 'pc'}</span>
             </div>
-            <div className="summary-row" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, marginTop: 4 }}>
-              <span className="summary-row-label">{t.profitEarned || t.realizedProfit}:</span>
-              <span
-                className="summary-row-value"
-                style={{ color: tx.realizedProfit >= 0 ? 'var(--color-success, #16A34A)' : 'var(--color-danger, #DC2626)' }}
-              >
-                {tx.realizedProfit >= 0 ? '+' : ''}{formatCurrency(tx.realizedProfit)}
-              </span>
-            </div>
+            {/* Profit / Loss / Break-even */}
+            {tx.realizedProfit > 0 && (
+              <div className="summary-row" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, marginTop: 4 }}>
+                <span className="summary-row-label">{t.profitEarned || t.realizedProfit || 'Profit'}:</span>
+                <span className="summary-row-value" style={{ color: 'var(--color-success, #16A34A)' }}>
+                  +{formatCurrency(tx.realizedProfit)}
+                </span>
+              </div>
+            )}
+            {tx.realizedProfit < 0 && (
+              <div className="summary-row" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, marginTop: 4 }}>
+                <span className="summary-row-label">{t.lossLabel || t.loss || 'Loss'}:</span>
+                <span className="summary-row-value" style={{ color: 'var(--color-danger, #DC2626)' }}>
+                  {formatCurrency(Math.abs(tx.realizedProfit))}
+                </span>
+              </div>
+            )}
+            {tx.realizedProfit === 0 && (
+              <div className="summary-row" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, marginTop: 4 }}>
+                <span className="summary-row-label">{t.breakEven || 'Break-even'}:</span>
+                <span className="summary-row-value" style={{ color: '#D97706' }}>
+                  ₹0
+                </span>
+              </div>
+            )}
           </div>
         )}
 
