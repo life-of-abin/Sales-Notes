@@ -130,6 +130,46 @@ body {
   -moz-osx-font-smoothing: grayscale;
   overscroll-behavior: none;
   min-height: 100dvh;
+  /* Prevent accidental text selection and Google search popup on tap/clicks */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Allow text selection only on input elements and textareas */
+input,
+textarea,
+[contenteditable="true"],
+.selectable-text {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* Ensure interactive elements never trigger text selection or tap highlights */
+button,
+a,
+select,
+option,
+.btn,
+.card,
+.product-card,
+.stat-card,
+.nav-item,
+.tab,
+.chip,
+.badge,
+svg,
+.icon {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #root {
