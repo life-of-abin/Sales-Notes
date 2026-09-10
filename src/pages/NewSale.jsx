@@ -9,7 +9,7 @@ import { calculateSaleTransaction } from '../services/calculationService';
 import PageHeader from '../components/layout/PageHeader';
 import QuantitySelector from '../components/ui/QuantitySelector';
 import CurrencyInput from '../components/ui/CurrencyInput';
-import { AlertTriangle, AlertCircle } from 'lucide-react';
+import { AlertTriangle, AlertCircle, Check } from 'lucide-react';
 
 export default function NewSale() {
   const navigate = useNavigate();
@@ -370,12 +370,12 @@ export default function NewSale() {
               gap: '10px',
             }}
           >
-            <AlertTriangle size={22} color="#DC2626" style={{ flexShrink: 0 }} />
+            <AlertTriangle size={20} color="#DC2626" style={{ flexShrink: 0 }} />
             <div>
-              <div style={{ fontWeight: 800, fontSize: 'var(--font-size-sm)', color: '#DC2626', lineHeight: 1.4 }}>
-                {(t.belowCostPriceWarning || t.sellingBelowCostWarning || '⚠️ Below cost price ({cost}). Loss: ₹{loss}')
-                  .replace('{cost}', formatCurrency(purchaseCost))
-                  .replace('{loss}', formatCurrency(tx.totalLoss))}
+              <div style={{ fontWeight: 700, fontSize: 'var(--font-size-sm)', color: '#DC2626', lineHeight: 1.4 }}>
+                {language === 'ta'
+                  ? `அடக்க விலையை விட குறைவு (${formatCurrency(purchaseCost)}). நஷ்டம்: ${formatCurrency(tx.totalLoss)}`
+                  : `Below cost price (${formatCurrency(purchaseCost)}). Loss: ${formatCurrency(tx.totalLoss)}`}
               </div>
             </div>
           </div>
@@ -445,16 +445,24 @@ export default function NewSale() {
 
       {/* Confirm Sale Button */}
       <button
-        className={`btn ${tx.isLoss ? 'btn--warning' : 'btn--success'} btn--lg`}
+        className={`btn ${tx.isLoss ? 'btn--warning' : 'btn--primary'} btn--lg`}
         onClick={handleSale}
         disabled={saving || quantity > maxQty || quantity <= 0 || actualSalePrice <= 0}
         id="btn-confirm-sale"
       >
-        {saving
-          ? t.recording
-          : tx.isLoss
-          ? `⚠️ ${t.confirmSale} (${t.lossLabel || 'Loss'}: ₹${tx.totalLoss})`
-          : t.confirmSale}
+        {saving ? (
+          t.recording
+        ) : tx.isLoss ? (
+          <>
+            <AlertTriangle size={20} />
+            <span>{t.confirmSale} ({t.lossLabel || 'Loss'}: {formatCurrency(tx.totalLoss)})</span>
+          </>
+        ) : (
+          <>
+            <Check size={20} />
+            <span>{t.confirmSale}</span>
+          </>
+        )}
       </button>
     </div>
   );

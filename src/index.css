@@ -835,6 +835,17 @@ ul, ol {
   box-shadow: 0 4px 14px rgba(239, 68, 68, 0.25);
 }
 
+.btn--warning {
+  background: linear-gradient(135deg, #F59E0B, #D97706);
+  color: var(--color-text-inverse, #ffffff);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+}
+
+.btn--warning:hover, .btn--warning:active {
+  background: linear-gradient(135deg, #D97706, #B45309);
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.4);
+}
+
 .btn--secondary {
   background: var(--color-primary-bg);
   color: var(--color-primary);
