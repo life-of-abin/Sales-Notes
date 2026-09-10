@@ -9,6 +9,7 @@ import { calculateSaleTransaction } from '../services/calculationService';
 import PageHeader from '../components/layout/PageHeader';
 import QuantitySelector from '../components/ui/QuantitySelector';
 import CurrencyInput from '../components/ui/CurrencyInput';
+import SmartAmountText from '../components/ui/SmartAmountText';
 import { AlertTriangle, AlertCircle, Check } from 'lucide-react';
 
 export default function NewSale() {
@@ -237,7 +238,7 @@ export default function NewSale() {
                         {t.batch || 'Batch'} #{lot.batchNumber || (idx + 1)}
                       </div>
                       <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginTop: 2, fontWeight: 600 }}>
-                        {formatCurrency(lot.sellingPrice)} / {t.piece || t.pieces || 'pc'}
+                        <SmartAmountText value={lot.sellingPrice} compact={true} /> / {t.piece || t.pieces || 'pc'}
                       </div>
                     </div>
                   </div>
@@ -300,17 +301,17 @@ export default function NewSale() {
           <div style={{ marginTop: 'var(--space-md)', paddingTop: 'var(--space-sm)', borderTop: '1px solid var(--color-border)' }}>
             <div className="summary-row" style={{ fontSize: 'var(--font-size-xs)', marginBottom: 4 }}>
               <span className="summary-row-label">{t.costPriceLabel || t.costPrice || 'Cost Price'}:</span>
-              <span className="summary-row-value">{formatCurrency(purchaseCost)}</span>
+              <span className="summary-row-value"><SmartAmountText value={purchaseCost} compact={true} /></span>
             </div>
             <div className="summary-row" style={{ fontSize: 'var(--font-size-xs)', marginBottom: 4 }}>
               <span className="summary-row-label">{t.sellingPriceLabel || t.sellPrice || 'Sell Price'}:</span>
-              <span className="summary-row-value">{formatCurrency(predefinedPrice)}</span>
+              <span className="summary-row-value"><SmartAmountText value={predefinedPrice} compact={true} /></span>
             </div>
             {tx.totalDiscount > 0 && (
               <div className="summary-row" style={{ fontSize: 'var(--font-size-xs)', marginBottom: 4 }}>
                 <span className="summary-row-label">{t.discount}:</span>
                 <span className="summary-row-value" style={{ color: '#EF4444', fontWeight: 700 }}>
-                  -{formatCurrency(tx.totalDiscount)}
+                  -<SmartAmountText value={tx.totalDiscount} compact={true} />
                 </span>
               </div>
             )}
@@ -318,20 +319,20 @@ export default function NewSale() {
               <div className="summary-row" style={{ fontSize: 'var(--font-size-xs)', marginBottom: 4 }}>
                 <span className="summary-row-label">{t.extra || 'Extra'}:</span>
                 <span className="summary-row-value" style={{ color: '#10B981', fontWeight: 700 }}>
-                  +{formatCurrency(tx.totalExtra)}
+                  +<SmartAmountText value={tx.totalExtra} compact={true} />
                 </span>
               </div>
             )}
             <div className="summary-row" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, marginTop: 6, paddingTop: 6, borderTop: '1px dashed var(--color-border)' }}>
               <span className="summary-row-label">{t.finalPrice || t.actualSalePrice}:</span>
-              <span className="summary-row-value">{formatCurrency(actualSalePrice)} / {t.piece || 'pc'}</span>
+              <span className="summary-row-value"><SmartAmountText value={actualSalePrice} compact={true} /> / {t.piece || 'pc'}</span>
             </div>
             {/* Profit / Loss / Break-even */}
             {tx.realizedProfit > 0 && (
               <div className="summary-row" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, marginTop: 4 }}>
                 <span className="summary-row-label">{t.profitEarned || t.realizedProfit || 'Profit'}:</span>
                 <span className="summary-row-value" style={{ color: 'var(--color-success, #16A34A)' }}>
-                  +{formatCurrency(tx.realizedProfit)}
+                  +<SmartAmountText value={tx.realizedProfit} compact={true} />
                 </span>
               </div>
             )}
@@ -339,7 +340,7 @@ export default function NewSale() {
               <div className="summary-row" style={{ fontSize: 'var(--font-size-sm)', fontWeight: 700, marginTop: 4 }}>
                 <span className="summary-row-label">{t.lossLabel || t.loss || 'Loss'}:</span>
                 <span className="summary-row-value" style={{ color: 'var(--color-danger, #DC2626)' }}>
-                  {formatCurrency(Math.abs(tx.realizedProfit))}
+                  <SmartAmountText value={Math.abs(tx.realizedProfit)} compact={true} />
                 </span>
               </div>
             )}

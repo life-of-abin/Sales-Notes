@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useBusiness } from '../hooks/useBusiness';
 import { getProductStock } from '../services/inventoryService';
 import { roundCurrency } from '../services/calculationService';
-import { formatCurrency } from '../utils/formatCurrency';
+import SmartAmountText from '../components/ui/SmartAmountText';
 import { getProductEmoji, getProductColor } from '../utils/constants';
 import { formatProductDisplayName } from '../utils/transliterate';
 import PageHeader from '../components/layout/PageHeader';
@@ -89,7 +89,7 @@ export default function ProductDetail() {
           </div>
           {priceBreakdown.map((group) => (
             <div key={group.price} className="price-row">
-              <span className="price-row-price">{formatCurrency(group.price)}</span>
+              <span className="price-row-price"><SmartAmountText value={group.price} compact={true} /></span>
               <span className="price-row-qty">{group.qty} {t.pieces}</span>
             </div>
           ))}
@@ -100,15 +100,15 @@ export default function ProductDetail() {
       <div className="card" style={{ marginBottom: 'var(--space-xl)' }}>
         <div className="summary-row">
           <span className="summary-row-label">{t.totalInvested}</span>
-          <span className="summary-row-value">{formatCurrency(totalInvested)}</span>
+          <span className="summary-row-value"><SmartAmountText value={totalInvested} compact={true} /></span>
         </div>
         <div className="summary-row">
           <span className="summary-row-label">{t.potentialSales}</span>
-          <span className="summary-row-value">{formatCurrency(potentialSales)}</span>
+          <span className="summary-row-value"><SmartAmountText value={potentialSales} compact={true} /></span>
         </div>
         <div className="summary-row">
           <span className="summary-row-label">{t.expectedProfit}</span>
-          <span className="summary-row-value profit">{formatCurrency(expectedProfit)}</span>
+          <span className="summary-row-value profit"><SmartAmountText value={expectedProfit} compact={true} /></span>
         </div>
       </div>
 

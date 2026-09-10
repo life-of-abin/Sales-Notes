@@ -5,6 +5,7 @@ import { formatCurrency } from '../utils/formatCurrency';
 import { generateId } from '../utils/generateId';
 import PageHeader from '../components/layout/PageHeader';
 import CurrencyInput from '../components/ui/CurrencyInput';
+import SmartAmountText from '../components/ui/SmartAmountText';
 import { Plus, X, Save, AlertTriangle } from 'lucide-react';
 
 const emptyItem = () => ({
@@ -211,18 +212,18 @@ export default function NewPurchase() {
             <div style={{ background: 'var(--color-bg)', borderRadius: 'var(--radius-md)', padding: 'var(--space-md)', marginTop: 'var(--space-sm)' }}>
               <div className="summary-row" style={{ padding: 'var(--space-xs) 0' }}>
                 <span className="summary-row-label">{t.totalCost}</span>
-                <span className="summary-row-value">{formatCurrency(getItemTotal(item))}</span>
+                <span className="summary-row-value"><SmartAmountText value={getItemTotal(item)} /></span>
               </div>
               {getItemExpectedSales(item) > 0 && (
                 <>
                   <div className="summary-row" style={{ padding: 'var(--space-xs) 0' }}>
                     <span className="summary-row-label">{t.expectedSales}</span>
-                    <span className="summary-row-value">{formatCurrency(getItemExpectedSales(item))}</span>
+                    <span className="summary-row-value"><SmartAmountText value={getItemExpectedSales(item)} /></span>
                   </div>
                   <div className="summary-row" style={{ padding: 'var(--space-xs) 0' }}>
                     <span className="summary-row-label">{t.expectedProfit}</span>
                     <span className="summary-row-value profit">
-                      {formatCurrency(getItemExpectedSales(item) - getItemTotal(item))}
+                      <SmartAmountText value={getItemExpectedSales(item) - getItemTotal(item)} />
                     </span>
                   </div>
                 </>
@@ -248,15 +249,15 @@ export default function NewPurchase() {
         <div className="card" style={{ marginBottom: 'var(--space-2xl)' }}>
           <div className="summary-row">
             <span className="summary-row-label">{t.totalInvestment}</span>
-            <span className="summary-row-value">{formatCurrency(totalInvestment)}</span>
+            <span className="summary-row-value"><SmartAmountText value={totalInvestment} /></span>
           </div>
           <div className="summary-row">
             <span className="summary-row-label">{t.expectedSales}</span>
-            <span className="summary-row-value">{formatCurrency(totalExpectedSales)}</span>
+            <span className="summary-row-value"><SmartAmountText value={totalExpectedSales} /></span>
           </div>
           <div className="summary-row">
             <span className="summary-row-label">{t.expectedProfit}</span>
-            <span className="summary-row-value profit">{formatCurrency(totalExpectedProfit)}</span>
+            <span className="summary-row-value profit"><SmartAmountText value={totalExpectedProfit} /></span>
           </div>
         </div>
       )}

@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useBusiness } from '../hooks/useBusiness';
-import { formatCurrency } from '../utils/formatCurrency';
+import { formatCurrency, formatExactCurrency, formatCompactCurrency } from '../utils/formatCurrency';
 import { formatProductDisplayName } from '../utils/transliterate';
 import { getBatchProfitData, getPeriodicSummary, getProductPerformance } from '../services/reportService';
 import { exportReportToExcel } from '../utils/exportExcel';
+import SmartAmountText from '../components/ui/SmartAmountText';
 import PageHeader from '../components/layout/PageHeader';
 import EmptyState from '../components/ui/EmptyState';
 import { FileSpreadsheet } from 'lucide-react';
@@ -165,7 +166,7 @@ function ChartTooltip({ active, payload, label, t }) {
 }
 
 /* ─── Stat Card ───────────────────────────────────────── */
-function StatCard({ emoji, label, value, color, sub }) {
+function StatCard({ emoji, label, value, rawValue, color, sub }) {
   return (
     <div style={{
       background: `linear-gradient(135deg, ${color}18, ${color}06)`,
@@ -177,7 +178,9 @@ function StatCard({ emoji, label, value, color, sub }) {
     }}>
       <div style={{ fontSize: 22, marginBottom: 4 }}>{emoji}</div>
       <div style={{ fontSize: 10, color: 'var(--color-text-secondary)', fontWeight: 700, marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 800, color, lineHeight: 1.1 }}>{value}</div>
+      <div style={{ fontSize: 18, fontWeight: 800, color, lineHeight: 1.1 }}>
+        <SmartAmountText value={rawValue !== undefined ? rawValue : value} compact={true} />
+      </div>
       {sub && <div style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 3 }}>{sub}</div>}
     </div>
   );
@@ -227,14 +230,14 @@ function ChartCard({ children }) {
 }
 
 /* ─── Tips generator ──────────────────────────────────── */
-function buildInsights(summary, topProducts, batchData, language = 'en') {
+function buildInsights(summary, topProducts, batchData, language, t) {
   if (!summary) return [];
-  const { totalSales, totalProfit, totalExpenses, netProfit, salesCount } = summary;
   const tips = [];
-  const pm = totalSales > 0 ? ((totalProfit / totalSales) * 100).toFixed(1) : 0;
-  const er = totalSales > 0 ? ((totalExpenses / totalSales) * 100).toFixed(1) : 0;
   const isTa = language === 'ta';
-  const fmt = (n) => Number(n).toLocaleString('en-IN');
+  const { netProfit, profitMargin, expenseRatio, totalExpenses, salesCount } = summary;
+  const pm = ((profitMargin || 0) * 100).toFixed(0);
+  const er = ((expenseRatio || 0) * 100).toFixed(0);
+  const fmt = (n) => formatExactCurrency(n);
 
   if (netProfit > 0) {
     tips.push({
@@ -306,7 +309,7 @@ function buildInsights(summary, topProducts, batchData, language = 'en') {
     const avg = done.reduce((s, b) => s + b.realizedProfit, 0) / done.length;
     tips.push({
       emoji: '💰',
-      text: isTa ? `விற்று முடிந்த தொகுதியின் சராசரி லாபம்: ₹${Math.round(avg).toLocaleString('en-IN')}.` : `Average profit per completed batch: ₹${Math.round(avg).toLocaleString('en-IN')}.`,
+      text: isTa ? `விற்று முடிந்த தொகுதியின் சராசரி லாபம்: ${fmt(Math.round(avg))}.` : `Average profit per completed batch: ${fmt(Math.round(avg))}.`,
       color: '#5B1EE6'
     });
   }
@@ -314,7 +317,7 @@ function buildInsights(summary, topProducts, batchData, language = 'en') {
   if (summary.stockValue > 0) {
     tips.push({
       emoji: '🏪',
-      text: isTa ? `₹${fmt(summary.stockValue)} மதிப்புள்ள ஸ்டாக் விற்க தயாராக உள்ளது. விரைவாக விற்று முடிக்கவும்!` : `₹${fmt(summary.stockValue)} worth of stock ready to sell. Push it out!`,
+      text: isTa ? `${fmt(summary.stockValue)} மதிப்புள்ள ஸ்டாக் விற்க தயாராக உள்ளது. விரைவாக விற்று முடிக்கவும்!` : `${fmt(summary.stockValue)} worth of stock ready to sell. Push it out!`,
       color: '#0EA5E9'
     });
   }
@@ -602,26 +605,30 @@ export default function Reports() {
                 <StatCard
                   emoji="🛍️"
                   label={t.totalSales || t.salesLabel}
-                  value={formatCurrency(summary.totalSales)}
+                  value={summary.totalSales}
+                  rawValue={summary.totalSales}
                   color={C.sales}
                   sub={(t.transactionsCount || '{n} transactions').replace('{n}', summary.salesCount || 0)}
                 />
                 <StatCard
                   emoji="💰"
                   label={t.profitEarned || t.profitLabel}
-                  value={formatCurrency(summary.totalProfit)}
+                  value={summary.totalProfit}
+                  rawValue={summary.totalProfit}
                   color={C.profit}
                 />
                 <StatCard
                   emoji="💸"
                   label={t.totalExpenses || t.expensesLabel}
-                  value={formatCurrency(summary.totalExpenses)}
+                  value={summary.totalExpenses}
+                  rawValue={summary.totalExpenses}
                   color={C.expense}
                 />
                 <StatCard
                   emoji={summary.netProfit >= 0 ? '🚀' : '📉'}
                   label={t.netProfit || t.netProfitLabel}
-                  value={formatCurrency(summary.netProfit)}
+                  value={summary.netProfit}
+                  rawValue={summary.netProfit}
                   color={summary.netProfit >= 0 ? C.profit : '#EF4444'}
                   sub={summary.netProfit >= 0 ? (t.afterExpenses || 'After expenses') : (t.highExpensesLoss || 'Loss — expenses high')}
                 />
@@ -1135,7 +1142,9 @@ export default function Reports() {
                             </div>
                           </div>
                         </div>
-                        <div style={{ fontWeight: 800, color: C.profit, fontSize: 15 }}>{formatCurrency(item.totalRevenue)}</div>
+                        <div style={{ fontWeight: 800, color: C.profit, fontSize: 15 }}>
+                          <SmartAmountText value={item.totalRevenue} compact={true} />
+                        </div>
                       </div>
                       <div style={{ height: 5, background: 'var(--color-border-light)', borderRadius: 3, overflow: 'hidden' }}>
                         <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${C.sales}, ${C.profit})`, borderRadius: 3 }} />
@@ -1175,14 +1184,18 @@ export default function Reports() {
                     <div style={{ fontWeight: 700, fontSize: 14 }}>{t.stockSellingValueTitle || 'Stock (at selling price)'}</div>
                     <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>{t.stockSellingValueDesc || 'Revenue if you sell all stock now'}</div>
                   </div>
-                  <div style={{ fontWeight: 800, fontSize: 16, color: C.stock }}>{formatCurrency(summary.stockValue)}</div>
+                  <div style={{ fontWeight: 800, fontSize: 16, color: C.stock }}>
+                    <SmartAmountText value={summary.stockValue} compact={true} />
+                  </div>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 4px' }}>
                   <div>
                     <div style={{ fontWeight: 700, fontSize: 14 }}>{t.stockCostValueTitle || 'Stock (at purchase price)'}</div>
                     <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>{t.stockCostValueDesc || 'Amount invested in unsold items'}</div>
                   </div>
-                  <div style={{ fontWeight: 800, fontSize: 16, color: C.expense }}>{formatCurrency(summary.stockCost)}</div>
+                  <div style={{ fontWeight: 800, fontSize: 16, color: C.expense }}>
+                    <SmartAmountText value={summary.stockCost} compact={true} />
+                  </div>
                 </div>
               </ChartCard>
             </div>

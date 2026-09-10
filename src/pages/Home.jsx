@@ -5,6 +5,7 @@ import { formatCurrency } from '../utils/formatCurrency';
 import { formatDate, formatTime } from '../utils/formatDate';
 import { formatProductDisplayName } from '../utils/transliterate';
 import StatCard from '../components/ui/StatCard';
+import SmartAmountText from '../components/ui/SmartAmountText';
 import ActionButton from '../components/ui/ActionButton';
 import MagicQrModal from '../components/MagicQrModal';
 import {
@@ -267,11 +268,16 @@ export default function Home() {
                 </div>
               </div>
               <div className="sale-card-right">
-                <div className="sale-card-amount">{maskAmount(sale.totalAmount)}</div>
+                <div className="sale-card-amount">
+                  <SmartAmountText value={sale.totalAmount} isPrivate={privacyMode} compact={true} />
+                </div>
                 <div className={`sale-card-profit ${sale.totalProfit < 0 ? 'negative' : ''}`}>
-                  {privacyMode
-                    ? maskAmount(sale.totalProfit)
-                    : `${sale.totalProfit >= 0 ? '+' : ''}${formatCurrency(sale.totalProfit)}`}
+                  <SmartAmountText
+                    value={sale.totalProfit}
+                    isPrivate={privacyMode}
+                    showSign={true}
+                    compact={true}
+                  />
                 </div>
               </div>
             </div>

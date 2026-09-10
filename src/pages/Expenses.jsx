@@ -3,6 +3,7 @@ import { useBusiness } from '../hooks/useBusiness';
 import { formatCurrency } from '../utils/formatCurrency';
 import { formatDate } from '../utils/formatDate';
 import { EXPENSE_TYPES, getExpenseTypeLabel } from '../utils/constants';
+import SmartAmountText from '../components/ui/SmartAmountText';
 import PageHeader from '../components/layout/PageHeader';
 import CurrencyInput from '../components/ui/CurrencyInput';
 import EmptyState from '../components/ui/EmptyState';
@@ -58,7 +59,9 @@ export default function Expenses() {
         <div className="card" style={{ marginBottom: 'var(--space-xl)', background: 'var(--color-danger-bg)' }}>
           <div className="summary-row">
             <span className="summary-row-label" style={{ fontWeight: 600 }}>{t.totalExpenses}</span>
-            <span className="summary-row-value loss">{formatCurrency(totalExpensesVal)}</span>
+            <span className="summary-row-value loss">
+              <SmartAmountText value={totalExpensesVal} compact={true} />
+            </span>
           </div>
         </div>
       )}
@@ -82,7 +85,9 @@ export default function Expenses() {
               <span className="expense-card-note">{formatDate(expense.date, language)}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
-              <span className="expense-card-amount">-{formatCurrency(expense.amount)}</span>
+              <span className="expense-card-amount">
+                -<SmartAmountText value={expense.amount} compact={true} />
+              </span>
               <button
                 onClick={() => setExpenseToDelete(expense)}
                 style={{ color: 'var(--color-text-tertiary)', padding: 4, cursor: 'pointer' }}
@@ -167,7 +172,7 @@ export default function Expenses() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                 <span style={{ fontWeight: 600 }}>{getExpenseTypeLabel(expenseToDelete.type, language)}</span>
                 <span style={{ color: 'var(--color-danger, #ef4444)', fontWeight: 700 }}>
-                  -{formatCurrency(expenseToDelete.amount)}
+                  -<SmartAmountText value={expenseToDelete.amount} compact={true} />
                 </span>
               </div>
               {expenseToDelete.note && (

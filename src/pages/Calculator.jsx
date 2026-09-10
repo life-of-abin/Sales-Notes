@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useBusiness } from '../hooks/useBusiness';
 import { useCalculator } from '../context/CalculatorContext';
 import { formatCurrency } from '../utils/formatCurrency';
+import SmartAmountText from '../components/ui/SmartAmountText';
 import PageHeader from '../components/layout/PageHeader';
 import CurrencyInput from '../components/ui/CurrencyInput';
 import { Minimize2, History, Trash2, X } from 'lucide-react';
@@ -297,7 +298,7 @@ export default function Calculator() {
               <div className="summary-row">
                 <span className="summary-row-label">{t.profitPerPiece}</span>
                 <span className={`summary-row-value ${profit >= 0 ? 'profit' : 'loss'}`}>
-                  {formatCurrency(profit)}
+                  <SmartAmountText value={profit} />
                 </span>
               </div>
               <div className="summary-row">
@@ -311,16 +312,16 @@ export default function Calculator() {
                   <div className="divider" />
                   <div className="summary-row">
                     <span className="summary-row-label">{t.totalBuyCalc} ({quantity} {t.pieces})</span>
-                    <span className="summary-row-value">{formatCurrency(totalBuy)}</span>
+                    <span className="summary-row-value"><SmartAmountText value={totalBuy} /></span>
                   </div>
                   <div className="summary-row">
                     <span className="summary-row-label">{t.totalSellCalc} ({quantity} {t.pieces})</span>
-                    <span className="summary-row-value">{formatCurrency(totalSell)}</span>
+                    <span className="summary-row-value"><SmartAmountText value={totalSell} /></span>
                   </div>
                   <div className="summary-row">
                     <span className="summary-row-label">{t.expectedProfit || t.profit}</span>
                     <span className={`summary-row-value ${totalProfit >= 0 ? 'profit' : 'loss'}`}>
-                      {formatCurrency(totalProfit)}
+                      <SmartAmountText value={totalProfit} />
                     </span>
                   </div>
                 </>

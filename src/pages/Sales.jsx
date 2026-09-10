@@ -4,6 +4,7 @@ import { useBusiness } from '../hooks/useBusiness';
 import { formatCurrency } from '../utils/formatCurrency';
 import { formatDate, formatTime, isToday, isThisWeek, isThisMonth, isThisYear } from '../utils/formatDate';
 import { formatProductDisplayName } from '../utils/transliterate';
+import SmartAmountText from '../components/ui/SmartAmountText';
 import PageHeader from '../components/layout/PageHeader';
 import EmptyState from '../components/ui/EmptyState';
 
@@ -63,11 +64,15 @@ export default function Sales() {
         <div className="card" style={{ marginBottom: 'var(--space-xl)' }}>
           <div className="summary-row">
             <span className="summary-row-label">{t.salesLabel || t.sales}</span>
-            <span className="summary-row-value">{formatCurrency(totalSales)}</span>
+            <span className="summary-row-value">
+              <SmartAmountText value={totalSales} compact={true} />
+            </span>
           </div>
           <div className="summary-row">
             <span className="summary-row-label">{t.profit}</span>
-            <span className="summary-row-value profit">{formatCurrency(totalProfit)}</span>
+            <span className="summary-row-value profit">
+              <SmartAmountText value={totalProfit} compact={true} />
+            </span>
           </div>
         </div>
       )}
@@ -91,18 +96,20 @@ export default function Sales() {
               </div>
             </div>
             <div className="sale-card-right">
-              <div className="sale-card-amount">{formatCurrency(sale.totalAmount)}</div>
+              <div className="sale-card-amount">
+                <SmartAmountText value={sale.totalAmount} compact={true} />
+              </div>
               <div className={`sale-card-profit ${sale.totalProfit < 0 ? 'negative' : ''}`}>
-                {sale.totalProfit >= 0 ? '+' : ''}{formatCurrency(sale.totalProfit)}
+                <SmartAmountText value={sale.totalProfit} showSign={true} compact={true} />
               </div>
               {sale.discount > 0 && (
                 <div style={{ fontSize: '11px', color: '#EF4444', fontWeight: 700, marginTop: 2 }}>
-                  {t.discount}: -{formatCurrency(sale.discount)}
+                  {t.discount}: -<SmartAmountText value={sale.discount} compact={true} />
                 </div>
               )}
               {sale.extra > 0 && (
                 <div style={{ fontSize: '11px', color: '#10B981', fontWeight: 700, marginTop: 2 }}>
-                  {t.extra || 'Extra'}: +{formatCurrency(sale.extra)}
+                  {t.extra || 'Extra'}: +<SmartAmountText value={sale.extra} compact={true} />
                 </div>
               )}
             </div>

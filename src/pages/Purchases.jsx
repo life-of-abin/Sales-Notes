@@ -125,25 +125,25 @@ export default function Purchases() {
               {/* 1. Total Investment */}
               <div className="batch-card-stat">
                 <span className="batch-card-stat-label">{t.totalInvestment || t.invested}</span>
-                <span className="batch-card-stat-value">{formatCurrency(detail.totalInvestment ?? batch.totalInvestment)}</span>
+                <span className="batch-card-stat-value"><SmartAmountText value={detail.totalInvestment ?? batch.totalInvestment} compact={true} /></span>
               </div>
               {/* 2. Total Sales */}
               <div className="batch-card-stat">
                 <span className="batch-card-stat-label">{t.totalSales || 'Total Sales'}</span>
-                <span className="batch-card-stat-value">{formatCurrency(detail.totalSales || 0)}</span>
+                <span className="batch-card-stat-value"><SmartAmountText value={detail.totalSales || 0} compact={true} /></span>
               </div>
               {/* 3. Expected Profit */}
               <div className="batch-card-stat">
                 <span className="batch-card-stat-label">{t.expectedProfit || 'Expected Profit'}</span>
                 <span className="batch-card-stat-value" style={{ color: 'var(--color-primary, #5B1EE6)' }}>
-                  {formatCurrency(detail.expectedProfit ?? 0)}
+                  <SmartAmountText value={detail.expectedProfit ?? 0} compact={true} />
                 </span>
               </div>
               {/* 4. Realized Profit (net result) */}
               <div className="batch-card-stat">
                 <span className="batch-card-stat-label">{t.realizedProfit || 'Realized Profit'}</span>
                 <span className="batch-card-stat-value" style={{ color: (detail.realizedProfit || 0) >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
-                  {formatCurrency(detail.realizedProfit || 0)}
+                  <SmartAmountText value={detail.realizedProfit || 0} compact={true} />
                 </span>
               </div>
               {/* 5. Discount (if present) */}
@@ -151,7 +151,7 @@ export default function Purchases() {
                 <div className="batch-card-stat">
                   <span className="batch-card-stat-label">{t.discount || 'Discount'}</span>
                   <span className="batch-card-stat-value" style={{ color: '#EF4444' }}>
-                    -{formatCurrency(detail.discount)}
+                    -<SmartAmountText value={detail.discount} compact={true} />
                   </span>
                 </div>
               )}
@@ -160,7 +160,7 @@ export default function Purchases() {
                 <div className="batch-card-stat">
                   <span className="batch-card-stat-label">{t.extra || 'Extra'}</span>
                   <span className="batch-card-stat-value" style={{ color: '#10B981' }}>
-                    +{formatCurrency(detail.extra)}
+                    +<SmartAmountText value={detail.extra} compact={true} />
                   </span>
                 </div>
               )}
@@ -169,7 +169,7 @@ export default function Purchases() {
                 <div className="batch-card-stat">
                   <span className="batch-card-stat-label">{t.lossLabel || t.loss || 'Loss'}</span>
                   <span className="batch-card-stat-value" style={{ color: '#EF4444' }}>
-                    {formatCurrency(detail.totalLoss)}
+                    <SmartAmountText value={detail.totalLoss} compact={true} />
                   </span>
                 </div>
               )}
@@ -274,15 +274,15 @@ export default function Purchases() {
                         </span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                        <span>{t.costPriceLabel || t.buyLabel}: {formatCurrency(lot.purchasePrice)}</span>
-                        <span>{t.sellingPriceLabel || t.sellLabel}: {formatCurrency(lot.sellingPrice)}</span>
+                        <span>{t.costPriceLabel || t.buyLabel}: <SmartAmountText value={lot.purchasePrice} compact={true} /></span>
+                        <span>{t.sellingPriceLabel || t.sellLabel}: <SmartAmountText value={lot.sellingPrice} compact={true} /></span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 'var(--font-size-sm)', marginTop: 4 }}>
                         <span style={{ color: 'var(--color-text-tertiary)' }}>
                           {t.remaining}: {lot.remainingQty}/{lot.quantity}
                         </span>
                         <span style={{ color: lot.realizedProfit >= 0 ? 'var(--color-success)' : 'var(--color-danger)', fontWeight: 600 }}>
-                          {t.realizedProfit || t.earned}: {formatCurrency(lot.realizedProfit)}
+                          {t.realizedProfit || t.earned}: <SmartAmountText value={lot.realizedProfit} compact={true} />
                         </span>
                       </div>
                       {lot.discount > 0 && (
@@ -298,7 +298,7 @@ export default function Purchases() {
                             {t.discount || t.discountGiven}:
                           </span>
                           <span style={{ color: '#EF4444', fontWeight: 700 }}>
-                            -{formatCurrency(lot.discount)}
+                            -<SmartAmountText value={lot.discount} compact={true} />
                           </span>
                         </div>
                       )}
@@ -315,7 +315,7 @@ export default function Purchases() {
                             {t.extra || t.extraEarned || 'Extra'}:
                           </span>
                           <span style={{ color: '#10B981', fontWeight: 700 }}>
-                            +{formatCurrency(lot.extra)}
+                            +<SmartAmountText value={lot.extra} compact={true} />
                           </span>
                         </div>
                       )}
@@ -332,7 +332,7 @@ export default function Purchases() {
                             {t.lossLabel || t.loss || 'Loss'}:
                           </span>
                           <span style={{ color: '#EF4444', fontWeight: 700 }}>
-                            {formatCurrency(lot.totalLoss)}
+                            <SmartAmountText value={lot.totalLoss} compact={true} />
                           </span>
                         </div>
                       )}
@@ -361,25 +361,25 @@ export default function Purchases() {
               <div className="summary-row" style={{ marginBottom: 4 }}>
                 <span className="summary-row-label">{t.totalInvestment}</span>
                 <span className="summary-row-value" style={{ fontWeight: 700 }}>
-                  {formatCurrency(selectedBatchMetrics.totalInvestment)}
+                  <SmartAmountText value={selectedBatchMetrics.totalInvestment} compact={true} />
                 </span>
               </div>
               <div className="summary-row" style={{ marginBottom: 4 }}>
                 <span className="summary-row-label">{t.totalSales}</span>
                 <span className="summary-row-value" style={{ fontWeight: 700 }}>
-                  {formatCurrency(selectedBatchMetrics.totalSales || selectedBatchMetrics.totalRevenue || 0)}
+                  <SmartAmountText value={selectedBatchMetrics.totalSales || selectedBatchMetrics.totalRevenue || 0} compact={true} />
                 </span>
               </div>
               <div className="summary-row" style={{ marginBottom: 4 }}>
                 <span className="summary-row-label">{t.expectedProfit || 'Expected Profit'}</span>
                 <span className="summary-row-value" style={{ color: 'var(--color-primary, #5B1EE6)', fontWeight: 700 }}>
-                  {formatCurrency(selectedBatchMetrics.expectedProfit ?? 0)}
+                  <SmartAmountText value={selectedBatchMetrics.expectedProfit ?? 0} compact={true} />
                 </span>
               </div>
               <div className="summary-row" style={{ marginBottom: selectedBatchMetrics.totalDiscount > 0 || selectedBatchMetrics.totalExtra > 0 || selectedBatchMetrics.totalLoss > 0 ? 4 : 0 }}>
                 <span className="summary-row-label">{t.realizedProfit}</span>
                 <span className={`summary-row-value ${selectedBatchMetrics.realizedProfit >= 0 ? 'profit' : 'loss'}`} style={{ fontWeight: 700 }}>
-                  {formatCurrency(selectedBatchMetrics.realizedProfit)}
+                  <SmartAmountText value={selectedBatchMetrics.realizedProfit} compact={true} />
                 </span>
               </div>
 
@@ -387,7 +387,7 @@ export default function Purchases() {
                 <div className="summary-row" style={{ marginBottom: 4 }}>
                   <span className="summary-row-label">{t.discount}</span>
                   <span className="summary-row-value" style={{ color: '#EF4444', fontWeight: 700 }}>
-                    -{formatCurrency(selectedBatchMetrics.totalDiscount)}
+                    -<SmartAmountText value={selectedBatchMetrics.totalDiscount} compact={true} />
                   </span>
                 </div>
               )}
@@ -396,7 +396,7 @@ export default function Purchases() {
                 <div className="summary-row" style={{ marginBottom: 4 }}>
                   <span className="summary-row-label">{t.extra || 'Extra'}</span>
                   <span className="summary-row-value" style={{ color: '#10B981', fontWeight: 700 }}>
-                    +{formatCurrency(selectedBatchMetrics.totalExtra)}
+                    +<SmartAmountText value={selectedBatchMetrics.totalExtra} compact={true} />
                   </span>
                 </div>
               )}
@@ -405,7 +405,7 @@ export default function Purchases() {
                 <div className="summary-row">
                   <span className="summary-row-label">{t.lossLabel || t.loss || 'Loss'}</span>
                   <span className="summary-row-value" style={{ color: '#EF4444', fontWeight: 700 }}>
-                    {formatCurrency(selectedBatchMetrics.totalLoss)}
+                    <SmartAmountText value={selectedBatchMetrics.totalLoss} compact={true} />
                   </span>
                 </div>
               )}

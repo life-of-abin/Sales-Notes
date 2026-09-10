@@ -2394,5 +2394,35 @@ g.recharts-tooltip-cursor {
   box-shadow: none !important;
 }
 
+/* ─── Smart Currency / Amount Display ─── */
+.smart-amount-text {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  transition: opacity var(--transition-fast);
+}
 
+.smart-amount-text--compact {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
 
+.smart-amount-text--compact:active {
+  opacity: 0.85;
+}
+
+.smart-amount-popover {
+  animation: popIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}

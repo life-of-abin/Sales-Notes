@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useBusiness } from '../hooks/useBusiness';
 import { formatCurrency } from '../utils/formatCurrency';
 import { formatCustomerDisplayName, toTamilName } from '../utils/transliterate';
+import SmartAmountText from '../components/ui/SmartAmountText';
 import PageHeader from '../components/layout/PageHeader';
 import CurrencyInput from '../components/ui/CurrencyInput';
 import EmptyState from '../components/ui/EmptyState';
@@ -129,7 +130,7 @@ export default function Customers() {
           <div className="summary-row">
             <span className="summary-row-label" style={{ fontWeight: 600 }}>{t.totalPending}</span>
             <span className="summary-row-value" style={{ color: 'var(--color-warning-dark)', fontWeight: 700 }}>
-              {formatCurrency(totalPending)}
+              <SmartAmountText value={totalPending} compact={true} />
             </span>
           </div>
         </div>
@@ -166,7 +167,7 @@ export default function Customers() {
                 </span>
               </div>
               <span className="customer-card-pending">
-                {formatCurrency(customer.totalPending)}
+                <SmartAmountText value={customer.totalPending} compact={true} />
               </span>
             </div>
             {customer.phone && (
@@ -270,17 +271,23 @@ export default function Customers() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)', marginBottom: 4 }}>
               <span style={{ color: 'var(--color-text-secondary)' }}>{t.totalBillAmount}:</span>
-              <span style={{ fontWeight: 600 }}>{formatCurrency(numTotal)}</span>
+              <span style={{ fontWeight: 600 }}>
+                <SmartAmountText value={numTotal} compact={true} />
+              </span>
             </div>
             {numPaid > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-sm)', marginBottom: 4 }}>
                 <span style={{ color: 'var(--color-text-secondary)' }}>{t.initialPaid}:</span>
-                <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>-{formatCurrency(numPaid)}</span>
+                <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>
+                  -<SmartAmountText value={numPaid} compact={true} />
+                </span>
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 'var(--font-size-base)', borderTop: '1px dashed var(--color-border, #e2e8f0)', paddingTop: 4, marginTop: 4 }}>
               <span style={{ fontWeight: 700 }}>{t.netPendingBalance}:</span>
-              <span style={{ fontWeight: 700, color: 'var(--color-warning-dark, #b45309)' }}>{formatCurrency(netPending)}</span>
+              <span style={{ fontWeight: 700, color: 'var(--color-warning-dark, #b45309)' }}>
+                <SmartAmountText value={netPending} compact={true} />
+              </span>
             </div>
           </div>
         )}

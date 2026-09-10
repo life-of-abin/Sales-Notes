@@ -1,4 +1,4 @@
-import { formatCurrency } from '../../utils/formatCurrency';
+import SmartAmountText from './SmartAmountText';
 
 export default function StatCard({
   icon,
@@ -9,11 +9,6 @@ export default function StatCard({
   isPrivate = false,
   onClick,
 }) {
-  const getMaskedValue = () => {
-    const stars = '****';
-    return isCurrency ? `₹ ${stars}` : stars;
-  };
-
   return (
     <div
       className="stat-card"
@@ -26,7 +21,15 @@ export default function StatCard({
       <div className="stat-card-content">
         <div className="stat-card-label">{label}</div>
         <div className={`stat-card-value ${isPrivate ? 'stat-card-value--masked' : ''}`}>
-          {isPrivate ? getMaskedValue(value) : isCurrency ? formatCurrency(value) : value}
+          {isCurrency ? (
+            <SmartAmountText
+              value={value}
+              isPrivate={isPrivate}
+              compact={true}
+            />
+          ) : (
+            isPrivate ? '****' : value
+          )}
         </div>
       </div>
     </div>
