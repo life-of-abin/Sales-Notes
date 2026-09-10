@@ -9,7 +9,7 @@ export async function allocateFIFO(productId, quantity) {
   const lots = await db.inventoryLots
     .where('productId')
     .equals(productId)
-    .filter((lot) => lot.remainingQty > 0)
+    .filter((lot) => !lot.isStockDeleted && !lot.isDeleted && lot.remainingQty > 0)
     .sortBy('createdAt');
 
   let remaining = quantity;
@@ -46,8 +46,8 @@ export async function allocateFIFO(productId, quantity) {
  */
 export async function allocateLot(lotId, quantity) {
   const lot = await db.inventoryLots.get(lotId);
-  if (!lot) {
-    throw new Error('Inventory lot not found.');
+  if (!lot || lot.isStockDeleted || lot.isDeleted) {
+    throw new Error('Inventory lot not found or stock deleted.');
   }
 
   if (lot.remainingQty < quantity) {
@@ -75,7 +75,7 @@ export async function getProductStock(productId) {
   const lots = await db.inventoryLots
     .where('productId')
     .equals(productId)
-    .filter((lot) => lot.remainingQty > 0)
+    .filter((lot) => !lot.isStockDeleted && !lot.isDeleted && lot.remainingQty > 0)
     .sortBy('createdAt');
 
   const batches = await db.purchaseBatches.toArray();
@@ -89,11 +89,11 @@ export async function getProductStock(productId) {
 }
 
 /**
- * Get a summary of all products with aggregated stock counts.
+ * Get a summary of all active products with aggregated stock counts.
  */
 export async function getAllProductSummaries() {
-  const products = await db.products.toArray();
-  const lots = await db.inventoryLots.toArray();
+  const products = await db.products.filter((p) => !p.isDeleted).toArray();
+  const lots = await db.inventoryLots.filter((l) => !l.isStockDeleted && !l.isDeleted).toArray();
 
   return products.map((product) => {
     const productLots = lots.filter((l) => l.productId === product.id);
@@ -121,10 +121,10 @@ export async function getAllProductSummaries() {
 }
 
 /**
- * Get total stock value (at selling price) and total cost.
+ * Get total stock value (at selling price) and total cost for active non-deleted stock.
  */
 export async function getTotalStockValue() {
-  const lots = await db.inventoryLots.toArray();
+  const lots = await db.inventoryLots.filter((l) => !l.isStockDeleted && !l.isDeleted).toArray();
   const activeValue = roundCurrency(
     lots.reduce(
       (sum, l) => sum + (Number(l.remainingQty) || 0) * (Number(l.sellingPrice) || 0),

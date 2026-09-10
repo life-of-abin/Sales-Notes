@@ -47,7 +47,7 @@ export function BusinessProvider({ children }) {
   const refreshData = useCallback(async () => {
     try {
       const [prods, sls, si, btch, exps, custs, pymts, summaries, sv] = await Promise.all([
-        db.products.toArray(),
+        db.products.filter((p) => !p.isDeleted).toArray(),
         db.sales.orderBy('date').reverse().toArray(),
         db.saleItems.toArray(),
         db.purchaseBatches.orderBy('date').reverse().toArray(),
@@ -437,10 +437,25 @@ export function BusinessProvider({ children }) {
     showToast(t.saleDeleted || 'Sale deleted');
   }, [refreshData, showToast, t]);
 
-  // ---- DELETE PRODUCT ----
+  // ---- DELETE PRODUCT / STOCK ----
   const deleteProduct = useCallback(async (productId) => {
-    await db.inventoryLots.where('productId').equals(productId).delete();
-    await db.products.delete(productId);
+    const now = new Date().toISOString();
+    // 1. Mark inventory lots as stock-deleted, remainingQty: 0
+    const lots = await db.inventoryLots.where('productId').equals(productId).toArray();
+    for (const lot of lots) {
+      await db.inventoryLots.update(lot.id, {
+        isStockDeleted: true,
+        isDeleted: true,
+        remainingQty: 0,
+        deletedQty: Number(lot.remainingQty) || 0,
+        deletedAt: now,
+      });
+    }
+    // 2. Mark product as deleted
+    await db.products.update(productId, {
+      isDeleted: true,
+      deletedAt: now,
+    });
     await refreshData();
     showToast(t.productDeleted || 'Product deleted successfully');
   }, [refreshData, showToast, t]);

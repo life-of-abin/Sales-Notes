@@ -51,6 +51,8 @@ export async function getBatchProfitData() {
         totalProfit: metrics.realizedProfit,
         totalSales: metrics.totalSales,
         status: metrics.status,
+        hasDeletedStock: metrics.hasDeletedStock,
+        isAllStockDeleted: metrics.isAllStockDeleted,
         totalInvestment: metrics.totalInvestment || Number(batch.totalInvestment) || 0,
       });
     }

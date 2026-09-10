@@ -260,9 +260,10 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
       }
     }
 
+    const isLotStockDeleted = Boolean(lot.isStockDeleted || lot.isDeleted);
     const lotInvestment = roundCurrency(pQty * bPrice);
-    const lotRemainingInvestment = roundCurrency(rQty * bPrice);
-    const lotExpectedReturn = rQty > 0 ? roundCurrency(rQty * sPrice) : 0;
+    const lotRemainingInvestment = isLotStockDeleted ? 0 : roundCurrency(rQty * bPrice);
+    const lotExpectedReturn = (!isLotStockDeleted && rQty > 0) ? roundCurrency(rQty * sPrice) : 0;
     const lotExpectedRevenue = roundCurrency(pQty * sPrice);
     const lotExpectedProfit = roundCurrency(pQty * (sPrice - bPrice));
     const lotProfitWithoutDiscount = roundCurrency(lotSoldQty * (sPrice - bPrice));
@@ -277,7 +278,7 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
     totalLoss += lotLoss;
     totalPurchasedQty += pQty;
     totalSoldQty += lotSoldQty;
-    totalRemainingQty += rQty;
+    totalRemainingQty += isLotStockDeleted ? 0 : rQty;
     totalRemainingInvestment += lotRemainingInvestment;
     totalExpectedRevenue += lotExpectedRevenue;
     totalExpectedProfit += lotExpectedProfit;
@@ -285,12 +286,13 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
 
     return {
       ...lot,
+      isStockDeleted: isLotStockDeleted,
       quantityPurchased: pQty,
       purchaseQty: pQty,
       quantitySold: lotSoldQty,
       soldQty: lotSoldQty,
-      quantityRemaining: rQty,
-      remainingQty: rQty,
+      quantityRemaining: isLotStockDeleted ? 0 : rQty,
+      remainingQty: isLotStockDeleted ? 0 : rQty,
       costPrice: bPrice,
       buyPrice: bPrice,
       sellPrice: sPrice,
@@ -315,6 +317,8 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
     };
   });
 
+  const hasDeletedStock = lots.some((l) => l.isStockDeleted || l.isDeleted);
+  const isAllStockDeleted = lots.length > 0 && lots.every((l) => l.isStockDeleted || l.isDeleted) && totalSoldQty === 0;
   const isCompleted = enrichedLots.length > 0 && totalRemainingQty === 0;
   const status = isCompleted ? 'completed' : 'selling';
   const averageActualSalePrice = totalSoldQty > 0 ? roundCurrency(totalRevenue / totalSoldQty) : 0;
@@ -348,6 +352,8 @@ export function calculateBatchMetrics(lots = [], allocations = [], saleItems = [
     totalExpectedReturn: roundCurrency(enrichedLots.reduce((sum, l) => sum + l.expectedReturn, 0)),
     averageActualSalePrice,
     status,
+    hasDeletedStock,
+    isAllStockDeleted,
     lots: enrichedLots,
   };
 }

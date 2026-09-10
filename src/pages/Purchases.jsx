@@ -234,7 +234,8 @@ export default function Purchases() {
               {/* Dedicated Scrollable List Container (Shows 3-4 items, visible slider at right) */}
               <div className="batch-items-scroll">
                 {selectedBatchMetrics.lots.map((lot) => {
-                  const isSoldOut = lot.remainingQty === 0;
+                  const isDeletedStock = Boolean(lot.isStockDeleted || lot.isDeleted);
+                  const isSoldOut = !isDeletedStock && lot.remainingQty === 0;
 
                   return (
                     <div
@@ -243,14 +244,31 @@ export default function Purchases() {
                       style={{
                         margin: 0,
                         padding: '10px 12px',
-                        border: '1px solid var(--color-border)',
-                        background: 'var(--color-surface, #ffffff)',
+                        border: isDeletedStock ? '1.5px solid #EF4444' : '1px solid var(--color-border)',
+                        background: isDeletedStock ? 'rgba(239, 68, 68, 0.04)' : 'var(--color-surface, #ffffff)',
                         borderRadius: 'var(--radius-md)',
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                           <span style={{ fontWeight: 600 }}>{formatProductDisplayName(lot.productName, language)}</span>
+                          {isDeletedStock && (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              padding: '2px 7px',
+                              borderRadius: '12px',
+                              background: '#EF444418',
+                              color: '#DC2626',
+                              border: '1px solid #EF444440',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              lineHeight: 1,
+                            }}>
+                              🗑️ {language === 'ta' ? 'நீக்கப்பட்ட சரக்கு' : 'Deleted Stock'}
+                            </span>
+                          )}
                           {isSoldOut && (
                             <span style={{
                               display: 'inline-flex',
@@ -279,8 +297,8 @@ export default function Purchases() {
                         <span>{t.sellingPriceLabel || t.sellLabel}: <SmartAmountText value={lot.sellingPrice} compact={true} /></span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 'var(--font-size-sm)', marginTop: 4 }}>
-                        <span style={{ color: 'var(--color-text-tertiary)' }}>
-                          {t.remaining}: {lot.remainingQty}/{lot.quantity}
+                        <span style={{ color: isDeletedStock ? '#DC2626' : 'var(--color-text-tertiary)', fontWeight: isDeletedStock ? 600 : 400 }}>
+                          {t.remaining}: {lot.remainingQty}/{lot.quantity} {isDeletedStock && (language === 'ta' ? '(நீக்கப்பட்டது)' : '(Deleted)')}
                         </span>
                         <span style={{ color: lot.realizedProfit >= 0 ? 'var(--color-success)' : 'var(--color-danger)', fontWeight: 600 }}>
                           {t.realizedProfit || t.earned}: <SmartAmountText value={lot.realizedProfit} compact={true} />

@@ -1020,15 +1020,30 @@ export default function Reports() {
                               <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 4, fontWeight: 700 }}>
                                 {activeBatch.label}
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor }} />
-                                <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-                                  {isNegative ? (t.lossLabel || t.loss || 'Loss') : (t.profitLabel || 'Profit')}:
-                                </span>
-                                <span style={{ fontSize: 12, fontWeight: 700, color: isNegative ? C.loss : 'var(--color-text)' }}>
-                                  {isNegative ? '-' : ''}₹{Math.abs(netVal).toLocaleString('en-IN')}
-                                </span>
-                              </div>
+                              {activeBatch.isAllStockDeleted ? (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: '#DC2626' }}>
+                                    🗑️ {language === 'ta' ? 'சரக்கு நீக்கப்பட்டது' : 'Stock Deleted'}
+                                  </span>
+                                </div>
+                              ) : (
+                                <>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor }} />
+                                    <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                                      {isNegative ? (t.lossLabel || t.loss || 'Loss') : (t.profitLabel || 'Profit')}:
+                                    </span>
+                                    <span style={{ fontSize: 12, fontWeight: 700, color: isNegative ? C.loss : 'var(--color-text)' }}>
+                                      {isNegative ? '-' : ''}₹{Math.abs(netVal).toLocaleString('en-IN')}
+                                    </span>
+                                  </div>
+                                  {activeBatch.hasDeletedStock && (
+                                    <div style={{ fontSize: 10, color: '#DC2626', fontWeight: 600, marginTop: 2 }}>
+                                      🗑️ {language === 'ta' ? 'நீக்கப்பட்ட சரக்கு உள்ளது' : 'Has Deleted Stock'}
+                                    </div>
+                                  )}
+                                </>
+                              )}
                             </div>
                           );
                         })()}
@@ -1084,10 +1099,51 @@ export default function Reports() {
                               shape={(props) => {
                                 const { x, y, width, height, payload } = props;
                                 if (!width || width <= 0) return null;
-                                const barHeight = Math.abs(height || 0);
-                                if (barHeight <= 0) return null;
                                 const itemKey = payload?.id ?? payload?.batchId;
                                 const isSelected = selectedBatchId !== null && selectedBatchId !== undefined && selectedBatchId === itemKey;
+
+                                if (payload?.isAllStockDeleted) {
+                                  const pillW = Math.min(width, 26);
+                                  const pillH = 14;
+                                  const pillX = x + (width - pillW) / 2;
+                                  const pillY = y - pillH / 2;
+                                  return (
+                                    <g
+                                      style={{ cursor: 'pointer' }}
+                                      onClick={(e) => {
+                                        if (e && e.stopPropagation) e.stopPropagation();
+                                        if (itemKey !== undefined && itemKey !== null) {
+                                          setSelectedBatchId((prev) => (prev === itemKey ? null : itemKey));
+                                          setSelectedSalesGroup(null);
+                                        }
+                                      }}
+                                    >
+                                      <rect
+                                        x={pillX}
+                                        y={pillY}
+                                        width={pillW}
+                                        height={pillH}
+                                        rx={4}
+                                        fill="#FEE2E2"
+                                        stroke={isSelected ? '#000000' : '#EF4444'}
+                                        strokeWidth={isSelected ? 1.5 : 1}
+                                      />
+                                      <text
+                                        x={pillX + pillW / 2}
+                                        y={pillY + 10}
+                                        textAnchor="middle"
+                                        fontSize={8.5}
+                                        fontWeight={800}
+                                        fill="#DC2626"
+                                      >
+                                        DEL
+                                      </text>
+                                    </g>
+                                  );
+                                }
+
+                                const barHeight = Math.abs(height || 0);
+                                if (barHeight <= 0) return null;
                                 const isNegative = Number(payload?.realizedProfit || 0) < 0;
                                 const fill = isNegative ? C.loss : (payload?.status === 'completed' ? C.completed : C.batch);
                                 const r = Math.min(6, Math.max(0, width / 2), barHeight);
@@ -1112,9 +1168,8 @@ export default function Reports() {
                                     style={{ cursor: 'pointer' }}
                                     onClick={(e) => {
                                       if (e && e.stopPropagation) e.stopPropagation();
-                                      const key = payload?.id ?? payload?.batchId;
-                                      if (key !== undefined && key !== null) {
-                                        setSelectedBatchId((prev) => (prev === key ? null : key));
+                                      if (itemKey !== undefined && itemKey !== null) {
+                                        setSelectedBatchId((prev) => (prev === itemKey ? null : itemKey));
                                         setSelectedSalesGroup(null);
                                       }
                                     }}
@@ -1670,15 +1725,30 @@ export default function Reports() {
                             <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 4, fontWeight: 700 }}>
                               {activeBatch.label}
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor }} />
-                              <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-                                {isNegative ? (t.lossLabel || t.loss || 'Loss') : (t.profitLabel || 'Profit')}:
-                              </span>
-                              <span style={{ fontSize: 12, fontWeight: 700, color: isNegative ? C.loss : 'var(--color-text)' }}>
-                                {isNegative ? '-' : ''}₹{Math.abs(netVal).toLocaleString('en-IN')}
-                              </span>
-                            </div>
+                            {activeBatch.isAllStockDeleted ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: '#DC2626' }}>
+                                  🗑️ {language === 'ta' ? 'சரக்கு நீக்கப்பட்டது' : 'Stock Deleted'}
+                                </span>
+                              </div>
+                            ) : (
+                              <>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor }} />
+                                  <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                                    {isNegative ? (t.lossLabel || t.loss || 'Loss') : (t.profitLabel || 'Profit')}:
+                                  </span>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: isNegative ? C.loss : 'var(--color-text)' }}>
+                                    {isNegative ? '-' : ''}₹{Math.abs(netVal).toLocaleString('en-IN')}
+                                  </span>
+                                </div>
+                                {activeBatch.hasDeletedStock && (
+                                  <div style={{ fontSize: 10, color: '#DC2626', fontWeight: 600, marginTop: 2 }}>
+                                    🗑️ {language === 'ta' ? 'நீக்கப்பட்ட சரக்கு உள்ளது' : 'Has Deleted Stock'}
+                                  </div>
+                                )}
+                              </>
+                            )}
                           </div>
                         );
                       })()}
@@ -1733,10 +1803,50 @@ export default function Reports() {
                             shape={(props) => {
                               const { x, y, width, height, payload } = props;
                               if (!width || width <= 0) return null;
-                              const barHeight = Math.abs(height || 0);
-                              if (barHeight <= 0) return null;
                               const itemKey = payload?.id ?? payload?.batchId;
                               const isSelected = selectedBatchId !== null && selectedBatchId !== undefined && selectedBatchId === itemKey;
+
+                              if (payload?.isAllStockDeleted) {
+                                const pillW = Math.min(width, 30);
+                                const pillH = 16;
+                                const pillX = x + (width - pillW) / 2;
+                                const pillY = y - pillH / 2;
+                                return (
+                                  <g
+                                    style={{ cursor: 'pointer' }}
+                                    onClick={(e) => {
+                                      if (e && e.stopPropagation) e.stopPropagation();
+                                      if (itemKey !== undefined && itemKey !== null) {
+                                        setSelectedBatchId((prev) => (prev === itemKey ? null : itemKey));
+                                      }
+                                    }}
+                                  >
+                                    <rect
+                                      x={pillX}
+                                      y={pillY}
+                                      width={pillW}
+                                      height={pillH}
+                                      rx={4}
+                                      fill="#FEE2E2"
+                                      stroke={isSelected ? '#000000' : '#EF4444'}
+                                      strokeWidth={isSelected ? 1.5 : 1}
+                                    />
+                                    <text
+                                      x={pillX + pillW / 2}
+                                      y={pillY + 11}
+                                      textAnchor="middle"
+                                      fontSize={9}
+                                      fontWeight={800}
+                                      fill="#DC2626"
+                                    >
+                                      DEL
+                                    </text>
+                                  </g>
+                                );
+                              }
+
+                              const barHeight = Math.abs(height || 0);
+                              if (barHeight <= 0) return null;
                               const isNegative = Number(payload?.realizedProfit || 0) < 0;
                               const fill = isNegative ? C.loss : (payload?.status === 'completed' ? C.completed : C.batch);
                               const r = Math.min(6, Math.max(0, width / 2), barHeight);
@@ -1759,9 +1869,8 @@ export default function Reports() {
                                   style={{ cursor: 'pointer' }}
                                   onClick={(e) => {
                                     if (e && e.stopPropagation) e.stopPropagation();
-                                    const key = payload?.id ?? payload?.batchId;
-                                    if (key !== undefined && key !== null) {
-                                      setSelectedBatchId((prev) => (prev === key ? null : key));
+                                    if (itemKey !== undefined && itemKey !== null) {
+                                      setSelectedBatchId((prev) => (prev === itemKey ? null : itemKey));
                                     }
                                   }}
                                 />
