@@ -40,11 +40,8 @@ export default function Home() {
     products,
   } = useBusiness();
 
-  const [privacyMode, setPrivacyMode] = useState(() => {
-    const saved = localStorage.getItem('my_dukaan_privacy');
-    // Default to true (Hidden) on initial launch
-    return saved === null ? true : saved === 'true';
-  });
+  // Always default to true (Hidden) for privacy on app open
+  const [privacyMode, setPrivacyMode] = useState(true);
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
 

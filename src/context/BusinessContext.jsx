@@ -437,6 +437,14 @@ export function BusinessProvider({ children }) {
     showToast(t.saleDeleted || 'Sale deleted');
   }, [refreshData, showToast, t]);
 
+  // ---- DELETE PRODUCT ----
+  const deleteProduct = useCallback(async (productId) => {
+    await db.inventoryLots.where('productId').equals(productId).delete();
+    await db.products.delete(productId);
+    await refreshData();
+    showToast(t.productDeleted || 'Product deleted successfully');
+  }, [refreshData, showToast, t]);
+
   // ---- Computed values ----
   const todaySales = sales.filter((s) => isToday(s.date));
   const todaySalesTotal = roundCurrency(todaySales.reduce((sum, s) => sum + (Number(s.totalAmount) || 0), 0));
@@ -472,6 +480,7 @@ export function BusinessProvider({ children }) {
     createPurchase,
     recordSale,
     deleteSale,
+    deleteProduct,
     addExpense,
     deleteExpense,
     addCustomer,

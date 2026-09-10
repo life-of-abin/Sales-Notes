@@ -904,13 +904,13 @@ export default function Reports() {
             <ChartCard>
               {batchData.length > 0 ? (
                 <>
-                  <div style={{ display: 'flex', width: '100%', height: 215, position: 'relative' }}>
+                  <div style={{ display: 'flex', width: '100%', height: 260, position: 'relative' }}>
                     {/* Fixed Left Y-Axis: Stays pinned and never moves on scroll, no borders */}
                     <div className="chart-y-axis-fixed" style={{ width: 48, height: '100%' }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart
                           data={batchAxisConfig.dummyData}
-                          margin={{ top: 8, right: 0, left: -6, bottom: 24 }}
+                          margin={{ top: 8, right: 0, left: -6, bottom: 65 }}
                         >
                           <YAxis
                             domain={[batchAxisConfig.yMin, batchAxisConfig.yMax]}
@@ -951,7 +951,7 @@ export default function Reports() {
                               ? `${Math.max(280, batchData.length * 64)}px`
                               : '100%',
                           minWidth: '100%',
-                          height: 215,
+                          height: 260,
                         }}
                       >
                         {/* Persistent Synchronized Tooltip for Batch Profit */}
@@ -1009,7 +1009,7 @@ export default function Reports() {
                         <ResponsiveContainer width="100%" height="100%">
                           <BarChart
                             data={batchData}
-                            margin={{ top: 8, right: 16, left: 0, bottom: 24 }}
+                            margin={{ top: 8, right: 16, left: 0, bottom: 65 }}
                           >
                             <CartesianGrid
                               strokeDasharray="3 3"
@@ -1019,15 +1019,29 @@ export default function Reports() {
                             <ReferenceLine y={0} stroke="var(--color-border-dark, #94A3B8)" strokeWidth={1.5} />
                             <XAxis
                               dataKey="label"
-                              tick={{
-                                fontSize: 11,
-                                fontWeight: 600,
-                                fill: 'var(--color-text-tertiary)',
+                              tick={(props) => {
+                                const { x, y, payload } = props;
+                                return (
+                                  <g transform={`translate(${x},${y + 4})`}>
+                                    <text
+                                      x={0}
+                                      y={0}
+                                      dy={4}
+                                      textAnchor="end"
+                                      fill="var(--color-text-secondary, #64748B)"
+                                      fontSize={10.5}
+                                      fontWeight={700}
+                                      transform="rotate(-90)"
+                                    >
+                                      {payload?.value || ''}
+                                    </text>
+                                  </g>
+                                );
                               }}
                               axisLine={false}
                               tickLine={false}
                               interval={0}
-                              height={24}
+                              height={65}
                             />
                             <YAxis
                               domain={[batchAxisConfig.yMin, batchAxisConfig.yMax]}
@@ -1092,17 +1106,17 @@ export default function Reports() {
                       👉 {language === 'ta' ? 'அனைத்து தொகுதிகளையும் பார்க்க நகர்த்தவும்' : 'Scroll horizontally to view all'}
                     </div>
                   )}
-                  {/* Compact square indicator legend outside/below chart */}
-                  <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                  {/* Left-aligned one-by-one legend */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 8, marginTop: 16, paddingLeft: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
                       <div style={{ width: 8, height: 8, borderRadius: 2, background: C.completed }} />
                       <span>{t.completedProfitLegend || 'Completed Batch with Profit'}</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
                       <div style={{ width: 8, height: 8, borderRadius: 2, background: C.batch }} />
                       <span>{t.stillSellingBadge || 'Still Selling'}</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>
                       <div style={{ width: 8, height: 8, borderRadius: 2, background: C.loss }} />
                       <span>{t.completedLossLegend || 'Completed Batch with Loss'}</span>
                     </div>

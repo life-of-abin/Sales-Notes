@@ -7,13 +7,16 @@ import SmartAmountText from '../components/ui/SmartAmountText';
 import { getProductEmoji, getProductColor } from '../utils/constants';
 import { formatProductDisplayName } from '../utils/transliterate';
 import PageHeader from '../components/layout/PageHeader';
-import { HandCoins } from 'lucide-react';
+import Modal from '../components/ui/Modal';
+import { HandCoins, Trash2, AlertTriangle } from 'lucide-react';
 
 export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { productSummaries, language, t } = useBusiness();
+  const { productSummaries, deleteProduct, language, t } = useBusiness();
   const [lots, setLots] = useState([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const product = productSummaries.find((p) => p.id === id);
 
@@ -52,12 +55,50 @@ export default function ProductDetail() {
   const emoji = getProductEmoji(product.name);
   const color = getProductColor(product.name);
 
+  const handleDelete = async () => {
+    setDeleting(true);
+    try {
+      await deleteProduct(product.id);
+      setShowDeleteConfirm(false);
+      navigate('/stock');
+    } catch (err) {
+      console.error('Failed to delete product:', err);
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="page-content">
-      <PageHeader title={formatProductDisplayName(product.name, language)} showBack />
+      <PageHeader
+        title={formatProductDisplayName(product.name, language)}
+        showBack
+        rightAction={
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            style={{
+              background: '#FEE2E2',
+              color: '#DC2626',
+              border: 'none',
+              borderRadius: 'var(--radius-md)',
+              width: 36,
+              height: 36,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            title={language === 'ta' ? 'பொருளை நீக்கு' : 'Delete Product / Stock'}
+            id="btn-delete-product-header"
+            aria-label="Delete product"
+          >
+            <Trash2 size={18} />
+          </button>
+        }
+      />
 
       {/* Product Hero */}
-      <div className="card" style={{ textAlign: 'center', marginBottom: 'var(--space-xl)' }}>
+      <div className="card" style={{ textAlign: 'center', marginBottom: 'var(--space-xl)', position: 'relative' }}>
         <div
           style={{
             width: 80,
@@ -112,17 +153,82 @@ export default function ProductDetail() {
         </div>
       </div>
 
-      {/* Sell Button */}
-      {product.totalQty > 0 && (
+      {/* Action Buttons */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
+        {product.totalQty > 0 && (
+          <button
+            className="btn btn--success btn--lg"
+            onClick={() => navigate(`/new-sale?productId=${product.id}`)}
+            id="btn-sell-this"
+          >
+            <HandCoins size={20} />
+            {t.sellThis}
+          </button>
+        )}
+
         <button
-          className="btn btn--success btn--lg"
-          onClick={() => navigate(`/new-sale?productId=${product.id}`)}
-          id="btn-sell-this"
+          className="btn btn--outline"
+          style={{ borderColor: 'var(--color-danger-bg)', color: 'var(--color-danger)' }}
+          onClick={() => setShowDeleteConfirm(true)}
+          id="btn-delete-stock-full"
         >
-          <HandCoins size={20} />
-          {t.sellThis}
+          <Trash2 size={18} />
+          {language === 'ta' ? 'இந்த பொருளை / ஸ்டாக்கை நீக்கு' : 'Delete this Stock / Product'}
         </button>
-      )}
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        title={language === 'ta' ? 'பொருளை நீக்கவா?' : 'Delete Product?'}
+      >
+        <div style={{ textAlign: 'center', padding: 'var(--space-md) 0' }}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              background: '#FEE2E2',
+              color: '#DC2626',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto var(--space-md)',
+            }}
+          >
+            <AlertTriangle size={28} />
+          </div>
+          <p style={{ fontWeight: 700, fontSize: 'var(--font-size-base)', marginBottom: 8 }}>
+            {formatProductDisplayName(product.name, language)}
+          </p>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', marginBottom: 'var(--space-xl)' }}>
+            {language === 'ta'
+              ? 'இந்த பொருளையும் அதற்கான அனைத்து இருப்பு ஸ்டாக் விவரங்களையும் நீக்க நிச்சயமாக விரும்புகிறீர்களா? இந்த செயலை மாற்ற இயலாது.'
+              : 'Are you sure you want to delete this product and its remaining inventory stock? This action cannot be undone.'}
+          </p>
+          <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
+            <button
+              className="btn btn--outline"
+              style={{ flex: 1 }}
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={deleting}
+              id="btn-cancel-delete-product"
+            >
+              {language === 'ta' ? 'ரத்து செய்' : 'Cancel'}
+            </button>
+            <button
+              className="btn btn--danger"
+              style={{ flex: 1 }}
+              onClick={handleDelete}
+              disabled={deleting}
+              id="btn-confirm-delete-product"
+            >
+              {deleting ? (language === 'ta' ? 'நீக்குகிறது...' : 'Deleting...') : (language === 'ta' ? 'ஆம், நீக்கு' : 'Yes, Delete')}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

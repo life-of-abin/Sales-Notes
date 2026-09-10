@@ -69,5 +69,6 @@ export function isThisYear(dateStr) {
 
 export function getShortDate(dateStr) {
   const d = new Date(dateStr);
-  return `${d.getDate()} ${MONTHS_EN[d.getMonth()]}`;
+  const yr = String(d.getFullYear()).slice(-2);
+  return `${d.getDate()} ${MONTHS_EN[d.getMonth()]} ${yr}`;
 }
